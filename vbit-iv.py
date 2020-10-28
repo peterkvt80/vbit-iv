@@ -4,14 +4,13 @@
 # Copyright (c) 2020 Peter Kwan
 # MIT License.
 
-print('VBITvid System started')
+print('VBIT-iv System started')
 
 import sys
 import time
 from ttxpage import TTXpage
+import zmq
 
-#import curses
-#stdscr = curses.initscr()
 
 # Globals
 packetSize=42 # The input stream packet size. Does not include CRI and FC
@@ -25,6 +24,9 @@ currentMag=1#4
 currentPage=0x00#0x70
 capturing = False
 elideRow = 0
+
+# remote
+pageNum = "100"
 
 ttx = TTXpage()
 
@@ -84,6 +86,25 @@ def decodePage(packet):
   tens =  deham(packet[3])
   units = deham(packet[2])
   return tens * 0x10 + units
+
+def remote(ch):
+    global pageNum
+    global currentMag
+    global currentPage
+    if ch>='0' and ch<='9':
+        pageNum = pageNum + ch
+        pageNum = pageNum[1:4]
+        print ("Pagenum= " + pageNum)
+        # validate
+        if pageNum[0]>'0' and pageNum[0]<'9': # valid mag
+            currentMag = int(pageNum[0])
+            currentPage = int(pageNum[1:3],16)
+            print ("mag, page = " + str(currentMag)+', '+hex(currentPage))
+    else:
+        print("Unhandled remote code: " + ch)
+        # @todo Reveal, Fastext, Hold, Double height, Page up, Page Down, Mix
+            
+  
   
 def process(packet):
   global capturing
@@ -110,10 +131,11 @@ def process(packet):
       # is this the magazine that we want?
       capturing = currentPage == page # Capture starts if this is the right page
       if capturing:
-        clearPage()
+        clearPage() # @todo Decode header flags
       printRow(packet, 0, 0, "{:1d}{:02X}".format(mag,page))
       elideRow = 0
-      ttx.printHeader(packet,  "{:1d}{:02X}".format(mag,page))
+      # Show the whole header if we are capturing. Otherwise just show the clock
+      ttx.printHeader(packet,  "{:1d}{:02X}".format(mag,page), capturing)
       #if capturing:
       #printRow(packet, 0, 0, "{:1d}{:02X}".format(mag,page))
       # print("\033[2J", end='') # clear screen  
@@ -125,6 +147,13 @@ def process(packet):
           elideRow = row+1  
   ttx.mainLoop()
   
+# Remote control talks on port 6558
+bind = "tcp://*:7777"
+print("vbit-vi binding to " + bind)
+context = zmq.Context()
+socket = context.socket(zmq.REP)
+socket.bind(bind)  
+  
 try:
   # This thread reads the input stream into a field buffer
   while True:
@@ -133,12 +162,17 @@ try:
       # packet=file.read(packetSize) # file based version
       packet=sys.stdin.buffer.read(packetSize) # read binary from stdin
       process(packet)
-    # Any keyboard input?
-    #x = stdscr.getkey()
-    #if ord(x)>0:
-      #print("key = " + str(ord(x)))  
-    time.sleep(0.040) # 20ms between fields
-    ##### step to the next buffer
+    time.sleep(0.020) # 20ms between fields
+    # Remote control zmq port 5557
+    try:
+      #message = socket.recv()
+      message = socket.recv(flags=zmq.NOBLOCK)
+      message = message.decode("utf-8")
+      remote(message)
+      #print("Message received " + message)
+      socket.send(b"sup?")
+    except zmq.Again as e:
+      time.sleep(0.001) # do nothing
     
 except KeyboardInterrupt: # If CTRL+C is pressed, exit cleanly:
   print("Keyboard interrupt")    

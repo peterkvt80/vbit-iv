@@ -33,8 +33,8 @@ class TTXpage:
     #print ("row = " + str(row))
     #self.lines[row].printRow(packet, row)  
 
-  def printHeader(self, packet, page):
-    self.lines.printHeader(packet, page)
+  def printHeader(self, packet, page, capturing):
+    self.lines.printHeader(packet, page, capturing)
 
   # Actually draw the stuff
   def mainLoop(self):

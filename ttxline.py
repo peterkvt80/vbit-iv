@@ -20,10 +20,10 @@ class TTXline:
     
     lines = 25
     
-    fontH=-round((-1+self.height_value/(lines+1)))# 
-    self.ttxfont0 = Font(family='teletext2', size=round(fontH/2))
-    self.ttxfont2 = Font(family='teletext2', size=fontH)
-    self.ttxfont4 = Font(family='teletext4', size=round(fontH*1.95))
+    self.fontH=-round((-1+self.height_value/(lines+1)))# 
+    self.ttxfont0 = Font(family='teletext2', size=round(self.fontH/2))
+    self.ttxfont2 = Font(family='teletext2', size=round(self.fontH))
+    self.ttxfont4 = Font(family='teletext4', size=round(self.fontH*1.95))
     
     self.text = Text(self.root, width = 40, height = lines)
     # Most of these options are failed attempts to remove the single pixel lines
@@ -35,6 +35,10 @@ class TTXline:
     self.text.tag_config("all", spacing2 = 10) # test to delete
     
     self.rowOffset = 0 # Used to elide double height lines
+    
+    self.pageLoaded = False
+    self.currentHeader = bytearray()
+    self.currentHeader.extend(b'YZ0123456789012345678901234567890123456789') # header of the page that is being displayed
     
   # true if while in graphics mode, it is a mosaic character. False if control or upper case alpha  
   def isMosaic(self, c):
@@ -74,8 +78,9 @@ class TTXline:
 
   # return True if the ascii value of the character is mosaic
   def isMosaic(self, ch):
-    c = ch & 0x7f
-    return (c>=0x20 and c<0x40) or c>=0x60  
+    return ch & 0x20; # Bit 6 set?
+    #c = ch & 0x7f
+    #return (c>=0x20 and c<0x40) or c>=0x60  
 
   # clear and replace the line contents
   # @param packet : packet to write
@@ -106,46 +111,44 @@ class TTXline:
       ch = chr(c)
       #if ch<' ':#
         #ch = '?'  
-      if c < 0x08: # alpha colours
-        graphicsMode = False
-      if c >= 0x10 and c < 0x18: # Mosaic colour
-        graphicsMode = True
+      if c == 0x0f: # double size
+        print("double size not implemented")  # Not the same as double height
       if c == 0x1e: # hold graphics
         holdMode = True
-      if c == 0x1f: # release graphics
-        holdMode = False
+        holdChar = ' '
       if c == 0x19: # Contiguous graphics
         contiguous = True
       if c == 0x1a: # Separated graphics
         contiguous = False  
       if graphicsMode:
-        if holdMode:
-          if self.isMosaic(c):
-            holdChar = chr(c)
-          else:
-            c = ord('q')
-        else:
-          if c < 0x20: # Set At ( @todo. Set after )
-            c = 0x020
-        if self.isMosaic(c):
-          if holdMode:
-            ch = holdChar  # replace character if in hold mode
+        # If it is a mosaic, work out what character it is  
+        if self.isMosaic(c):        
           if contiguous:
             ch = chr(c + 0x0e680 - 0x20) # contiguous
           else:  
-            ch = chr(c + 0x0e680) # separated
+            ch = chr(c + 0x0e680) # separate            
+          if holdMode:
+            holdChar = ch # save the character for later
         else:
-          if ch < ' ': # blank out control code
-            ch = ' '
-          else:
-            ch = chr(c)  # Text in graphics mode
+          if holdMode:
+            ch = holdChar # non printable and in hold
+          else:  
+            ch = ' ' # Non printable  
+        # if it is not a mosaic and we are in hold mode, substitute the character      
       else:
-        ch = self.mapchar(ch) # text in alpha mode
-        #ch = 'x'
-        # @todo separated and double height
-      if ch < ' ':
-        ch = ' '  
+        # alpha is way simpler  
+        if ch < ' ':
+          ch = ' '
+        else:
+          ch = self.mapchar(ch) # text in alpha mode
       self.text.insert(rstr+str(i), ch)
+      # set-after
+      if c == 0x1f: # release graphics
+        holdMode = False
+      if c < 0x08: # alpha colours
+        graphicsMode = False
+      if c >= 0x10 and c < 0x18: # Mosaic colour
+        graphicsMode = True
       
     # PASS 2: Add text attributes: font, colour, flash
     foreground_colour = 'white'
@@ -154,55 +157,84 @@ class TTXline:
     self.text.tag_add(tagRowID, tag_start, tag_end)
     self.text.tag_config(tagRowID, font=self.ttxfont2)
     
+    hf=1
+    
     for i in range(40):
-      doubleHeight = False
       c = packet[i+2] & 0x7f
       ch = chr(c)
       #if i==1 and c<0x20:
         #print (hex(c))
+      if c == 0x0c:
+        # This code breaks if there is a normal size but NO double height on the line 
+        tag_id = "th"+str(row)+str(i+1)
+        self.text.tag_add(tag_id, rstr + str(i+1), rstr + str(40)) # column + 1 - set-after
+        self.text.tag_config(tag_id, font=self.ttxfont2, offset=0) # normal height too
+        # @todo Doing another pass for the offset is the only way to make it work correctly, probably
       if c == 0x0d:
-        doubleHeight = True # @todo Need to make sure the next line is blanked
-      if c==0x1c: # black background
-        background_colour = 'black'  
-      if c==0x1d: # new background
-        background_colour = foreground_colour  
-      if c < 0x08 or c==0x1d or c==0x1c: # alpha colours, new background, black background
-        tid = "ta" + str(row)+str(i)
-        loc = rstr + str(i)
-        self.text.tag_add(tid, loc, rstr + str(40))
-
-#self.text.tag_add("ta"+str(i), "1."+str(i)) #, "1."+str(39))
-        foreground_colour = self.getcolour(c)
-        self.text.tag_config(tid, background=background_colour, foreground=foreground_colour) #foreground_colour)
-        #print("tid = " + tid + " loc = " + loc + ", colour = " + foreground_colour )
-        #print ("c =" + str(colour))   
-        #start = i  
-        #print("got here - 2, start = " + str(start) +" i = " + str(i))
-      if c >= 0x10 and c < 0x18: # Mosaic colour
-        tag_id = "tg"+str(row)+str(i)
-        self.text.tag_add(tag_id, rstr + str(i), rstr + str(40))
-        foreground_colour = self.getcolour(c-0x10)
-        self.text.tag_config(tag_id , foreground = foreground_colour, background = background_colour)
-      if doubleHeight:
         hasDoubleHeight = True  
-        self.text.tag_config(tid, font=self.ttxfont4) # Implement normal height too
+        tag_id = "th"+str(row)+str(i+1)
+        self.text.tag_add(tag_id, rstr + str(i+1), rstr + str(40)) # column + 1 - set-after         
+        self.text.tag_config(tag_id, font=self.ttxfont4, offset=0) # double height
+
+      colourChanged =False
+      if c==0x1c: # black background
+        background_colour = 'black'
+        colourChanged = True
+      if c==0x1d: # new background
+        background_colour = foreground_colour
+        colourChanged = True
+      if c < 0x08 : # alpha colour
+        foreground_colour = self.getcolour(c)
+        colourChanged = True
+      if c >= 0x10 and c < 0x18: # Mosaic colour
+        foreground_colour = self.getcolour(c-0x10)
+        colourChanged = True
+      if colourChanged:
+        tag_id = "tg"+str(row)+str(i+1)
+        self.text.tag_add(tag_id, rstr + str(i+1), rstr + str(40)) # column + 1 - set-after 
+        self.text.tag_config(tag_id , foreground = foreground_colour, background = background_colour)
+          
+#      if doubleHeight:
+        #hasDoubleHeight = True  
+        #tag_id = "th"+str(row)+str(i+1)
+        #self.text.tag_add(tag_id, rstr + str(i+1), rstr + str(40)) # column + 1 - set-after         
+        #self.text.tag_config(tag_id, font=self.ttxfont4) # Implement normal height too
         # hide the next row
-        if row < 23 and False:          
-          tag_id = "ta"+str(row + 1) + str(i)
-          tag_rstr = str(row + 2) + "."
-          print ("old tid = " + tid + " tag_id = " + tag_id + ", tag_rstr = " + tag_rstr)
-          self.text.tag_add(tag_id, tag_rstr + str(0), tag_rstr + str(40))
-          self.text.tag_config(tag_id, font=self.ttxfont0)
+        #if row < 23 and False:          
+          #tag_id = "ta"+str(row + 1) + str(i)
+          #tag_rstr = str(row + 2) + "."
+          #print ("old tid = " + tid + " tag_id = " + tag_id + ", tag_rstr = " + tag_rstr)
+          #self.text.tag_add(tag_id, tag_rstr + str(0), tag_rstr + str(40))
+          #self.text.tag_config(tag_id, font=self.ttxfont0)
     return hasDoubleHeight
     
-  def printHeader(self, packet, page = "Header.."):
-    buf=bytearray(packet)
-    for i in range(8): # blank the control area
-      buf[i+2]=ord('x') #0x20
+  def printHeader(self, packet, page = "Header..", capturing = False):
+    buf = bytearray(packet) # convert to bytearray so we can modify it
+    for i in range(10): # blank out the header bytes
+      buf[i]=ord(' ')
+    print('A')  
+    for i in range(34,42): # copy the clock
+      print(str(type(self.currentHeader)))  
+      print(str(type(buf)))  
+      self.currentHeader[i] = buf[i]  
+      
+    print("3")  
+    if self.pageLoaded: # Show the current header
+      print("1")  
+      buf = self.currentHeader
+      print("2")  
+    if capturing: # This is the header, set state
+      self.currentHeader = buf  
+      self.pageLoaded = True
+
     self.setLine(buf, 0)
+
+    # Now that the buffer has the correct characters loaded, we can set the generated page number
+    #@todo Change the colour of the page number while seeking a page
     self.text.delete("1.0", "1.8") # strip the control bytes
     self.text.insert("1.0", ("P"+page)[0:4]) # add the page number
-    self.text.insert("1.4", "    ") # pad the remaining space
+    self.text.insert("1.4", "    ") # pad the remaining space    
+      
     self.rowOffset = 0
   
   # Return True if the row includes double height
