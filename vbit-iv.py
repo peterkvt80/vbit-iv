@@ -24,6 +24,7 @@ currentMag=1#4
 currentPage=0x00#0x70
 capturing = False
 elideRow = 0
+seeking = True # True while seeking a new page to display
 
 # remote
 pageNum = "100"
@@ -91,6 +92,8 @@ def remote(ch):
     global pageNum
     global currentMag
     global currentPage
+    global lastPacket
+    global seeking
     if ch>='0' and ch<='9':
         pageNum = pageNum + ch
         pageNum = pageNum[1:4]
@@ -100,6 +103,10 @@ def remote(ch):
             currentMag = int(pageNum[0])
             currentPage = int(pageNum[1:3],16)
             print ("mag, page = " + str(currentMag)+', '+hex(currentPage))
+            # send the last header again, just so we can update the target page number
+            seeking = True # @todo If we select the page we are already on
+        ttx.printHeader(lastPacket,  pageNum, seeking)
+            
     else:
         print("Unhandled remote code: " + ch)
         # @todo Reveal, Fastext, Hold, Double height, Page up, Page Down, Mix
@@ -111,6 +118,7 @@ def process(packet):
   global currentMag
   global currentPage
   global elideRow
+  global lastPacket
   result = mrag(packet[0], packet[1])
   mag = result[0]
   row = result[1]
@@ -132,10 +140,11 @@ def process(packet):
       capturing = currentPage == page # Capture starts if this is the right page
       if capturing:
         clearPage() # @todo Decode header flags
-      printRow(packet, 0, 0, "{:1d}{:02X}".format(mag,page))
+      printRow(packet, 0, 0, "{:1d}{:02X}".format(currentMag,currentPage))
       elideRow = 0
       # Show the whole header if we are capturing. Otherwise just show the clock
-      ttx.printHeader(packet,  "{:1d}{:02X}".format(mag,page), capturing)
+      ttx.printHeader(packet,  "{:1d}{:02X}".format(currentMag,currentPage), seeking)
+      lastPacket = packet
       #if capturing:
       #printRow(packet, 0, 0, "{:1d}{:02X}".format(mag,page))
       # print("\033[2J", end='') # clear screen  

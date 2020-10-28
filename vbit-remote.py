@@ -24,9 +24,12 @@ socket.connect(host)
 
 #  main loop. Get character, send request to vbit-i
 ch = '?'
+
 while True:
     ch = readchar.readchar()
-    print("Sending request BLAH" + ch) #str(key))
+    if ord(ch) == 3 or ch == 'q':
+        exit()
+    print("Sending request " + str(ord(ch))) #str(key))
     socket.send_string(ch)
     #  Get the reply.
     print("Sent request. Awaiting reply")

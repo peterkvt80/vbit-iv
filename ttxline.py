@@ -86,13 +86,18 @@ class TTXline:
   # @param packet : packet to write
   # @param row : row number to write
   def setLine(self, packet, row):
-    # erase the line
+    # It has two phases
+    # 1) Place all the characters on the line
+    # 2) Set their attributes: colour and font size
+
     #print ("[setLine]row = "+str(row))
-    rstr = str(row + 1) + "."
+    # erase the line
+    rstr = str(row + 1) + "." # The row string
     tag_start=str(rstr +"0")
-    tag_end=str(rstr +"40")
+    tag_end=str(rstr +"end")
     self.text.delete(tag_start, tag_end ) # erase the line
     
+    # Set the conditions at the start of the line
     graphicsMode = False
     doubleHeight = False
     hasDoubleHeight = False
@@ -101,6 +106,8 @@ class TTXline:
     contiguous = True
     concealed = True # @todo
     flashMode = False # @todo
+    
+    lastMosaicChar = ' '
     
     # PASS 1: put the characters in. Selects glyphs for alpha, contiguous gfx, separated gxf
     for i in range(40):
@@ -113,9 +120,9 @@ class TTXline:
         #ch = '?'  
       if c == 0x0f: # double size
         print("double size not implemented")  # Not the same as double height
-      if c == 0x1e: # hold graphics
+      if c == 0x1e: # hold graphics - set at
         holdMode = True
-        holdChar = ' '
+        holdChar = lastMosaicChar # ' '
       if c == 0x19: # Contiguous graphics
         contiguous = True
       if c == 0x1a: # Separated graphics
@@ -129,6 +136,7 @@ class TTXline:
             ch = chr(c + 0x0e680) # separate            
           if holdMode:
             holdChar = ch # save the character for later
+          lastMosaicChar = ch  
         else:
           if holdMode:
             ch = holdChar # non printable and in hold
@@ -143,7 +151,7 @@ class TTXline:
           ch = self.mapchar(ch) # text in alpha mode
       self.text.insert(rstr+str(i), ch)
       # set-after
-      if c == 0x1f: # release graphics
+      if c == 0x1f: # release graphics - set after
         holdMode = False
       if c < 0x08: # alpha colours
         graphicsMode = False
@@ -159,73 +167,65 @@ class TTXline:
     
     hf=1
     
+    # Set the text attributes: colour and font size
     for i in range(40):
       c = packet[i+2] & 0x7f
       ch = chr(c)
       #if i==1 and c<0x20:
         #print (hex(c))
-      if c == 0x0c:
+      if c == 0x0c: # normal height
         # This code breaks if there is a normal size but NO double height on the line 
-        tag_id = "th"+str(row)+str(i+1)
-        self.text.tag_add(tag_id, rstr + str(i+1), rstr + str(40)) # column + 1 - set-after
+        tag_id = "thc"+str(row)+str(i)
+        self.text.tag_add(tag_id, rstr + str(i+1), rstr + 'end') # column + 1 - set-after
         self.text.tag_config(tag_id, font=self.ttxfont2, offset=0) # normal height too
         # @todo Doing another pass for the offset is the only way to make it work correctly, probably
-      if c == 0x0d:
+      if c == 0x0d: # double height
         hasDoubleHeight = True  
-        tag_id = "th"+str(row)+str(i+1)
-        self.text.tag_add(tag_id, rstr + str(i+1), rstr + str(40)) # column + 1 - set-after         
+        tag_id = "thd"+str(row)+str(i)
+        self.text.tag_add(tag_id, rstr + str(i+1), rstr + 'end') # column + 1 - set-after         
         self.text.tag_config(tag_id, font=self.ttxfont4, offset=0) # double height
 
       colourChanged =False
-      if c==0x1c: # black background
+      set_at = 1 # 0 = set at, 1 = set after
+      if c==0x1c: # black background - set at
         background_colour = 'black'
         colourChanged = True
-      if c==0x1d: # new background
+        set_at = 0
+      if c==0x1d: # new background - set at
         background_colour = foreground_colour
         colourChanged = True
-      if c < 0x08 : # alpha colour
+        set_at = 0
+      if c < 0x08 : # alpha colour - set after
         foreground_colour = self.getcolour(c)
         colourChanged = True
-      if c >= 0x10 and c < 0x18: # Mosaic colour
+      if c >= 0x10 and c < 0x18: # Mosaic colour - set after
         foreground_colour = self.getcolour(c-0x10)
         colourChanged = True
-      if colourChanged:
-        tag_id = "tg"+str(row)+str(i+1)
-        self.text.tag_add(tag_id, rstr + str(i+1), rstr + str(40)) # column + 1 - set-after 
+        
+      if colourChanged:          
+        tag_id = "tg"+str(row)+str(i) # Do not add set-at to the column in the tag. It could alias the tag
+        self.text.tag_add(tag_id, rstr + str(i+set_at), rstr + 'end') # 
         self.text.tag_config(tag_id , foreground = foreground_colour, background = background_colour)
           
-#      if doubleHeight:
-        #hasDoubleHeight = True  
-        #tag_id = "th"+str(row)+str(i+1)
-        #self.text.tag_add(tag_id, rstr + str(i+1), rstr + str(40)) # column + 1 - set-after         
-        #self.text.tag_config(tag_id, font=self.ttxfont4) # Implement normal height too
-        # hide the next row
-        #if row < 23 and False:          
-          #tag_id = "ta"+str(row + 1) + str(i)
-          #tag_rstr = str(row + 2) + "."
-          #print ("old tid = " + tid + " tag_id = " + tag_id + ", tag_rstr = " + tag_rstr)
-          #self.text.tag_add(tag_id, tag_rstr + str(0), tag_rstr + str(40))
-          #self.text.tag_config(tag_id, font=self.ttxfont0)
     return hasDoubleHeight
     
-  def printHeader(self, packet, page = "Header..", capturing = False):
+  def printHeader(self, packet, page = "Header..", seeking = False):
     buf = bytearray(packet) # convert to bytearray so we can modify it
     for i in range(10): # blank out the header bytes
       buf[i]=ord(' ')
-    print('A')  
+    #print('A')  
     for i in range(34,42): # copy the clock
-      print(str(type(self.currentHeader)))  
-      print(str(type(buf)))  
-      self.currentHeader[i] = buf[i]  
+      #print(str(type(self.currentHeader)))  
+      #print(str(type(buf)))  
+      self.currentHeader[i] = buf[i]
       
-    print("3")  
-    if self.pageLoaded: # Show the current header
-      print("1")  
-      buf = self.currentHeader
-      print("2")  
-    if capturing: # This is the header, set state
-      self.currentHeader = buf  
-      self.pageLoaded = True
+    if seeking:
+        #self.pageLoaded = False
+        self.currentHeader = buf
+    else:
+        #if not self.pageLoaded:
+        #    self.pageLoaded = True  
+        buf = self.currentHeader
 
     self.setLine(buf, 0)
 
@@ -245,5 +245,6 @@ class TTXline:
       self.rowOffset=self.rowOffset+1
       return True
     return False
+
 
 
