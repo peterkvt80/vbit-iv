@@ -25,6 +25,7 @@ currentPage=0x00#0x70
 capturing = False
 elideRow = 0
 seeking = True # True while seeking a new page to display
+lastPacket = b"AB0123456789012345678901234567890123456789"
 
 # remote
 pageNum = "100"
@@ -35,15 +36,15 @@ print(sys.argv)
 
 # Accept mag and page eg. .vbitvid 1 29
 if int(sys.argv[1])>0:
-  currentMag = int(sys.argv[1]) % 8
+    currentMag = int(sys.argv[1]) % 8
 print ("mag = "+str(currentMag))
 if int(sys.argv[2])>0:
-  currentPage = int(sys.argv[2], 16)
+    currentPage = int(sys.argv[2], 16)
 print ("page = "+str(currentPage))
 
 def clearPage():
-  return # kill the console print 
-  print("\033[2J", end='') # clear screen  
+    return # kill the console print 
+    print("\033[2J", end='') # clear screen  
     
 
 def printRow(packet, row=-1, col=-1, pagenum=''):
@@ -65,28 +66,28 @@ def printRow(packet, row=-1, col=-1, pagenum=''):
   print()
 
 def deham(value):
-  # Deham with NO checking! @todo Parity and error correction
-  b0 = (value & 0x02) >> 1
-  b1 = (value & 0x08) >> 2
-  b2 = (value & 0x20) >> 3
-  b3 = (value & 0x80) >> 4
-  return b0+b1+b2+b3
+    # Deham with NO checking! @todo Parity and error correction
+    b0 = (value & 0x02) >> 1
+    b1 = (value & 0x08) >> 2
+    b2 = (value & 0x20) >> 3
+    b3 = (value & 0x80) >> 4
+    return b0+b1+b2+b3
 
 def mrag(v1, v2):
-  rowlsb = deham(v1)
-  mag = rowlsb % 8
-  if mag==0:
-    mag = 8
+    rowlsb = deham(v1)
+    mag = rowlsb % 8
+    if mag==0:
+        mag = 8
 
-  row = deham(v2) << 1
-  if (rowlsb & 0x08)>0:
-    row = row + 1
-  return mag, row
+    row = deham(v2) << 1
+    if (rowlsb & 0x08)>0:
+        row = row + 1
+    return mag, row
 
 def decodePage(packet):
-  tens =  deham(packet[3])
-  units = deham(packet[2])
-  return tens * 0x10 + units
+    tens =  deham(packet[3])
+    units = deham(packet[2])
+    return tens * 0x10 + units
 
 def remote(ch):
     global pageNum
@@ -110,15 +111,14 @@ def remote(ch):
     else:
         print("Unhandled remote code: " + ch)
         # @todo Reveal, Fastext, Hold, Double height, Page up, Page Down, Mix
-            
-  
-  
+              
 def process(packet):
   global capturing
   global currentMag
   global currentPage
   global elideRow
   global lastPacket
+  global seeking
   result = mrag(packet[0], packet[1])
   mag = result[0]
   row = result[1]
@@ -134,22 +134,26 @@ def process(packet):
   # only display things that are on our magazine
   if currentMag == mag: # assume parallel mode
     if row == 0:
-      page = decodePage(packet)
 #      print("\033[0;0fP", end='')
       # is this the magazine that we want?
-      capturing = currentPage == page # Capture starts if this is the right page
+      page = decodePage(packet)
+      capturing = currentPage == page
       if capturing:
+          seeking = False # Capture starts if this is the right page
+          lastPacket = packet
+      if not seeking: # new header starts rendering the page
         clearPage() # @todo Decode header flags
+        # @todo Don't clear if the page is already loaded
       printRow(packet, 0, 0, "{:1d}{:02X}".format(currentMag,currentPage))
       elideRow = 0
       # Show the whole header if we are capturing. Otherwise just show the clock
       ttx.printHeader(packet,  "{:1d}{:02X}".format(currentMag,currentPage), seeking)
-      lastPacket = packet
       #if capturing:
       #printRow(packet, 0, 0, "{:1d}{:02X}".format(mag,page))
       # print("\033[2J", end='') # clear screen  
         #printRow(packet)
     else:
+        # @todo Need to copy all pages until a new header arrives
       if capturing and row < 25:
         printRow(packet, row+1)
         if ttx.printRow(packet, row): # double height?
@@ -184,13 +188,13 @@ try:
       time.sleep(0.001) # do nothing
     
 except KeyboardInterrupt: # If CTRL+C is pressed, exit cleanly:
-  print("Keyboard interrupt")    
+    print("Keyboard interrupt")    
 
 except Exception as inst:
-  print("some error") 
-  print(type(inst)) 
-  print(inst.args) 
-  print(inst) 
+    print("some error") 
+    print(type(inst)) 
+    print(inst.args) 
+    print(inst) 
 
 finally:
-  print("clean up") 
+    print("clean up") 
