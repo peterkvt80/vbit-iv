@@ -30,7 +30,13 @@ class TTXline:
         self.text.config(borderwidth=0, foreground='white', background='black', font=self.ttxfont2, padx=0, pady=0, autoseparators=0, highlightbackground='black')
 
         for i in range(24):
-            self.text.insert(END, "0123456789012345678901234567890123456789\n")
+            if i==11:
+                self.text.insert(END, "     VBIT IN-VISION                     \n")
+                tag_id = "dbl"
+                self.text.tag_add(tag_id, "12.0", '12.end')
+                self.text.tag_config(tag_id, font=self.ttxfont4, offset=0, foreground = 'orange') # double height                
+            else:    
+                self.text.insert(END, "                                        \n")
         self.text.tag_add("all", "1.0", END) # test to delete
         self.text.tag_config("all", spacing2 = 10) # test to delete
 
