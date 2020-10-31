@@ -1,14 +1,47 @@
 #!/usr/bin/env python3
 
 # Teletext Stream to Invision decoder
+#
 # Copyright (c) 2020 Peter Kwan
-# MIT License. blah blah.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 
 from tkinter import Tk, Text, END
 from tkinter.font import Font
 
 class TTXline:
     print("TTXLine created")
+    
+    # Map a teletext colour nuber to an actual colour
+    def getcolour(self, c):    
+        switcher = {
+        0: "black",
+        1: "red",
+        2: "green1",
+        3: "yellow",
+        4: "blue",
+        5: "magenta",
+        6: "cyan",
+        7: "white"
+        }
+        return switcher.get(c, "white")
+    
     def __init__(self, root_param):
         # this is where we define a Text object and set it up  
         self.root = root_param
@@ -37,8 +70,8 @@ class TTXline:
                 self.text.tag_config(tag_id, font=self.ttxfont4, offset=0, foreground = 'orange') # double height                
             else:    
                 self.text.insert(END, "                                        \n")
-        self.text.tag_add("all", "1.0", END) # test to delete
-        self.text.tag_config("all", spacing2 = 10) # test to delete
+        #self.text.tag_add("all", "1.0", END) # test to delete
+        #self.text.tag_config("all", spacing2 = 10) # test to delete
 
         self.rowOffset = 0 # Used to elide double height lines
 
@@ -46,6 +79,19 @@ class TTXline:
         self.found = False
         self.currentHeader = bytearray()
         self.currentHeader.extend(b'YZ0123456789012345678901234567890123456789') # header of the page that is being displayed
+        
+        # make all 128 possible attribute tags
+        #for textsize in ["single"]:#, "double"]:
+        #    for fg in ["black", "red", "green1", "yellow", "blue", "magenta", "cyan", "white"]:
+        #        for bg in ["black", "red", "green1", "yellow", "blue", "magenta", "cyan", "white"]:
+        #            tag = textsize + '-' + fg + '-' + bg
+        #            if textsize == 'double':
+        #                textfont = self.ttxfont4
+        #            if textsize== 'single':
+        #                textfont = self.ttxfont2
+        #            self.text.tag_config(tag, font=textfont, foreground = fg, background = bg)
+        #            print(tag)#, end=' ')
+        #print()
     
     # true if while in graphics mode, it is a mosaic character. False if control or upper case alpha  
     def isMosaic(self, c):
@@ -70,19 +116,6 @@ class TTXline:
         }      
         return mapper.get(c, c)
     
-    def getcolour(self, c):    
-        switcher = {
-        0: "black",
-        1: "red",
-        2: "green1",
-        3: "yellow",
-        4: "blue",
-        5: "magenta",
-        6: "cyan",
-        7: "white"
-        }
-        return switcher.get(c, "white")
-
     # return True if the ascii value of the character is mosaic
     def isMosaic(self, ch):
         return ch & 0x20; # Bit 6 set?
@@ -95,12 +128,20 @@ class TTXline:
         # 1) Place all the characters on the line
         # 2) Set their attributes: colour and font size
 
-        #print ("[setLine]row = "+str(row))
-        # erase the line
         rstr = str(row + 1) + "." # The row string
         tag_start=str(rstr +"0")
         tag_end=str(rstr +"end")
+
+        # wsfn remove this for testing
+        for tag in self.text.tag_names(): # erase the line attributes
+            attr = tag.split('-')
+            if attr[0] == str(row+1):
+              print('deleting tag = ' + tag)
+              self.text.tag_delete(tag)
+        #print ("[setLine]row = "+str(row))
+        # erase the line
         self.text.delete(tag_start, tag_end ) # erase the line
+        
 
         # Set the conditions at the start of the line
         graphicsMode = False
@@ -120,8 +161,8 @@ class TTXline:
             # Convert control code ascii
             # @todo Regional mappings
             ch = chr(c)
-            if c == 0x0f: # double size
-                print("double size not implemented")  # Not the same as double height
+            #if c == 0x0f: # double size
+             #   print("double size not implemented")  # Not the same as double height
             if c == 0x1e: # hold graphics - set at
                 holdMode = True
                 holdChar = lastMosaicChar # ' '
@@ -163,54 +204,80 @@ class TTXline:
         # PASS 2: Add text attributes: font, colour, flash
         foreground_colour = 'white'
         background_colour = 'black'
-        tagRowID = "WholeRow"+ str(row)
-        self.text.tag_add(tagRowID, tag_start, tag_end)
-        self.text.tag_config(tagRowID, font=self.ttxfont2)
+        text_height = 'single'
+        # tagRowID = "WholeRow"+ str(row)
+        # Set the initial colour for the row
+        #tagRowID = text_height + '-' + foreground_colour + '-' + background_colour
+        # We don't do this as it seems to take over priority.
+        # Oops. The tag priority depends on the order it was created. So white always beats colours :-(
+        # WSFN self.text.tag_add(tagRowID, tag_start, tag_end)
+        # self.text.tag_config(tagRowID, font=self.ttxfont2)
 
         hf=1
     
         # Set the text attributes: colour and font size
+        # row
+        row = str(row + 1)
+        ix= 0
+        attr = text_height 
         for i in range(40):
             c = packet[i+2] & 0x7f
             ch = chr(c)
             #if i==1 and c<0x20:
             #print (hex(c))
+            attributeChanged =False
             if c == 0x0c: # normal height
-                # This code breaks if there is a normal size but NO double height on the line 
-                tag_id = "thc"+str(row)+str(i)
-                self.text.tag_add(tag_id, rstr + str(i+1), rstr + 'end') # column + 1 - set-after
-                self.text.tag_config(tag_id, font=self.ttxfont2, offset=0) # normal height too
+                # This code breaks if there is a normal size but NO double height on the line
+                text_height = 'single'
+                #tag_id = "thc"+str(row)+"-"+str(i)
+                attributeChanged = True
+                #tag_id = text_height + '-' + foreground_colour + '-' + background_colour
+                #self.text.tag_add(tag_id, rstr + str(i+1), rstr + 'end') # column + 1 - set-after
+                # self.text.tag_config(tag_id, font=self.ttxfont2, offset=0) # normal height too
             # @todo Doing another pass for the offset is the only way to make it work correctly, probably
             if c == 0x0d: # double height
+                text_height = 'double'
                 hasDoubleHeight = True  
-                tag_id = "thd"+str(row)+str(i)
-                self.text.tag_add(tag_id, rstr + str(i+1), rstr + 'end') # column + 1 - set-after         
-                self.text.tag_config(tag_id, font=self.ttxfont4, offset=0) # double height
+                attributeChanged = True
+                #tag_id = "thd"+str(row)+"-"+str(i)
+                #tag_id = text_height + '-' + foreground_colour + '-' + background_colour
+                #self.text.tag_add(tag_id, rstr + str(i+1), rstr + 'end') # column + 1 - set-after         
+                #print("Setting height attributes " + tag_id)
+                ##self.text.tag_config(tag_id, font=self.ttxfont4, offset=0) # double height
 
-            colourChanged =False
             set_at = 1 # 0 = set at, 1 = set after
             if c==0x1c: # black background - set at
                 background_colour = 'black'
-                colourChanged = True
+                attributeChanged = True
                 set_at = 0
             if c==0x1d: # new background - set at
                 background_colour = foreground_colour
-                colourChanged = True
+                attributeChanged = True
                 set_at = 0
             if c < 0x08 : # alpha colour - set after
                 foreground_colour = self.getcolour(c)
-                colourChanged = True
+                attributeChanged = True
             if c >= 0x10 and c < 0x18: # Mosaic colour - set after
                 foreground_colour = self.getcolour(c-0x10)
-                colourChanged = True
+                attributeChanged = True
 
-            if colourChanged:          
-                tag_id = "tg"+str(row)+str(i) # Do not add set-at to the column in the tag. It could alias the tag
-                self.text.tag_add(tag_id, rstr + str(i+set_at), rstr + 'end') # 
-                self.text.tag_config(tag_id , foreground = foreground_colour, background = background_colour)
+            if attributeChanged:          
+                # tag_id identifies the row 
+                tag_id = row + '-' + str(ix) + '-' + text_height + '-' + foreground_colour + '-' + background_colour
+                ix = ix + 1
+#                tag_id = row + '-' + str(ix++) + '-' + text_height + '-' + foreground_colour + '-' + background_colour
+                #tag_id = 'double' + '-' + 'cyan' + '-' + 'black'
+                #print("Setting attributes at " +rstr + str(i+set_at) + " to " + rstr + 'end *' + tag_id + '*')
+                self.text.tag_add(tag_id, rstr + str(i+set_at), rstr + 'end') #
+                if text_height == 'double':
+                    textFont = self.ttxfont4
+                else:
+                    textFont = self.ttxfont2
+                self.text.tag_config(tag_id , font = textFont, foreground = foreground_colour, background = background_colour)
           
         return hasDoubleHeight
     
+    # param page - An 8 character info string for the start of the header
     def printHeader(self, packet, page = "Header..", seeking = False):
         global found
         buf = bytearray(packet) # convert to bytearray so we can modify it
@@ -230,6 +297,10 @@ class TTXline:
             if not found:
                 self.currentHeader = buf # The whole header is updating
                 found = True
+                # Now that we have found the page, dump all of the tags
+                # @todo Probably change this to tag_remove
+                # for tag in self.text.tag_names(): # This clears all tags BUT only when moving to a new page
+                #     self.text.tag_delete(tag)
             #if not self.pageLoaded:
             #    self.pageLoaded = True  
             buf = self.currentHeader # The header stays on the loaded page
@@ -239,13 +310,16 @@ class TTXline:
         # Now that the buffer has the correct characters loaded, we can set the generated page number
         #@todo Change the colour of the page number while seeking a page
         self.text.delete("1.0", "1.8") # strip the control bytes
-        self.text.insert("1.0", ("P"+page)[0:4]) # add the page number
-        self.text.insert("1.4", "    ") # pad the remaining space
-        self.text.tag_add("pageColour", "1.0", "1.8")
-        if seeking:
-            self.text.tag_config("pageColour", foreground = "green1") # seeking
+        self.text.insert("1.0", page) # add the page number
+        print("inserting " + page)
+        # self.text.insert("1.4", "    ") # pad the remaining space
+        #self.text.tag_add("pageColour", "1.0", "1.7")
+        if seeking or page[0] == 'H': # Page number goes green in HOLD or while seeking
+            self.text.tag_add("single-green1-black", "1.0", "1.7")
+            #self.text.tag_config("pageColour", foreground = "green1") # seeking
         else:
-            self.text.tag_config("pageColour", foreground = "white") # found
+            self.text.tag_add("single-white-black", "1.0", "1.7")
+            #self.text.tag_config("pageColour", foreground = "white") # found
           
         self.rowOffset = 0
   

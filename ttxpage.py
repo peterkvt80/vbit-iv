@@ -1,5 +1,9 @@
 # ttxpage.py.
 #
+# VBIT Stream renderer. Teletext page level.
+# You can modify this to run full frame
+# or a smaller window
+#
 # Copyright (c) 2020 Peter Kwan
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -28,15 +32,15 @@ class TTXpage:
     def __init__(self):
         self.root = Tk()
 
-        self.width_value=self.root.winfo_screenwidth()
+        self.width_value=self.root.winfo_screenwidth() # full screen
         self.height_value=self.root.winfo_screenheight()
 
-        #self.width_value = 768
+        #self.width_value = 768 # not full screen
         #self.height_value=576
         self.root.configure(background='black', borderwidth=0, highlightthickness=0)
         self.root.geometry("%dx%d+0+0" % (self.width_value, self.height_value))
 
-        # Make it full screen
+        # Make it full screen (Comment it out if you want to run in a window)
         self.root.wm_attributes('-fullscreen','true')
 
         self.root.wait_visibility(self.root)
