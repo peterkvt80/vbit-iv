@@ -10,7 +10,7 @@ By using vbit2 you can get a live teletext feed from a number of channels includ
 A network server listens for remote control commands so you can select pages by sending the appropriate commands. vbit-remote.py is a simple client that takes keyboard commands and sends them to vbit-iv. You can write your own client to work a remote control from a mobile phone for example. 
 
 todo@ 
-* Better header rendering. 
-* Remaining features: flash/reveal etc.
+* Remaining features: flash etc.
 * Standards compliance. Edge cases to fix.
 * Channel switching via remote.
+* Packaging for easy installation and running
