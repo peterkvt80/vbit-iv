@@ -44,6 +44,7 @@ elideRow = 0
 seeking = True # True while seeking a new page to display
 lastPacket = b"AB0123456789012345678901234567890123456789"
 holdMode = False
+revealMode = False # hidden
 
 # remote
 pageNum = "100"
@@ -114,8 +115,13 @@ def remote(ch):
     global lastPacket
     global seeking
     global holdMode
+    global revealMode
     if ch == 'h': # hold
         holdMode = not holdMode
+        return
+    if ch == 'r': # reveal-oh
+        revealMode = not revealMode
+        ttx.reveal(revealMode)
         return
     if ch>='0' and ch<='9':
         pageNum = pageNum + ch
@@ -148,7 +154,7 @@ def process(packet):
     # If we hit a row that follows a header, skip the packet
     if elideRow>0 and elideRow == row:
         ttx.mainLoop()
-        print("eliding row= " + str(elideRow))
+        #print("eliding row= " + str(elideRow))
         elideRow=0
         return
   

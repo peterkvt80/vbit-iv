@@ -64,4 +64,7 @@ class TTXpage:
     def mainLoop(self):
         self.root.update_idletasks()
         self.root.update()
+        
+    def reveal(self, show):
+        self.lines.reveal(show)
   

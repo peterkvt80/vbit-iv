@@ -58,18 +58,23 @@ class TTXline:
         self.ttxfont2 = Font(family='teletext2', size=round(self.fontH))
         self.ttxfont4 = Font(family='teletext4', size=round(self.fontH*1.95))
 
-        self.text = Text(self.root, width = 40, height = lines)
+        self.text = Text(self.root, width = 40, height = lines) # The normal text
+        self.textConceal = Text(self.root, width = 40, height = lines) # Copy of text but with reveals hidden
+        
         # Most of these options are failed attempts to remove the single pixel lines
         self.text.config(borderwidth=0, foreground='white', background='black', font=self.ttxfont2, padx=0, pady=0, autoseparators=0, highlightbackground='black')
+        self.textConceal.config(borderwidth=0, foreground='white', background='black', font=self.ttxfont2, padx=0, pady=0, autoseparators=0, highlightbackground='black')
 
         for i in range(24):
             if i==11:
                 self.text.insert(END, "     VBIT IN-VISION                     \n")
+                self.textConceal.insert(END, "     VBIT IN-VISION                     \n")
                 tag_id = "dbl"
                 self.text.tag_add(tag_id, "12.0", '12.end')
                 self.text.tag_config(tag_id, font=self.ttxfont4, offset=0, foreground = 'orange') # double height                
             else:    
                 self.text.insert(END, "                                        \n")
+                self.textConceal.insert(END, "                                        \n")
         #self.text.tag_add("all", "1.0", END) # test to delete
         #self.text.tag_config("all", spacing2 = 10) # test to delete
 
@@ -79,19 +84,8 @@ class TTXline:
         self.found = False
         self.currentHeader = bytearray()
         self.currentHeader.extend(b'YZ0123456789012345678901234567890123456789') # header of the page that is being displayed
-        
-        # make all 128 possible attribute tags
-        #for textsize in ["single"]:#, "double"]:
-        #    for fg in ["black", "red", "green1", "yellow", "blue", "magenta", "cyan", "white"]:
-        #        for bg in ["black", "red", "green1", "yellow", "blue", "magenta", "cyan", "white"]:
-        #            tag = textsize + '-' + fg + '-' + bg
-        #            if textsize == 'double':
-        #                textfont = self.ttxfont4
-        #            if textsize== 'single':
-        #                textfont = self.ttxfont2
-        #            self.text.tag_config(tag, font=textfont, foreground = fg, background = bg)
-        #            print(tag)#, end=' ')
-        #print()
+
+        #self.textConceal = self.text
     
     # true if while in graphics mode, it is a mosaic character. False if control or upper case alpha  
     def isMosaic(self, c):
@@ -122,13 +116,13 @@ class TTXline:
 
     # clear and replace the line contents
     # @param packet : packet to write
-    # @param row : row number to write
+    # @param row : row number to write (starting from 0)
     def setLine(self, packet, row):
         # It has two phases
         # 1) Place all the characters on the line
         # 2) Set their attributes: colour and font size
 
-        rstr = str(row + 1) + "." # The row string
+        rstr = str(row + 1) + "." # The row string. First Text row is 1
         tag_start=str(rstr +"0")
         tag_end=str(rstr +"end")
 
@@ -136,11 +130,13 @@ class TTXline:
         for tag in self.text.tag_names(): # erase the line attributes
             attr = tag.split('-')
             if attr[0] == str(row+1):
-              print('deleting tag = ' + tag)
+              #print('deleting tag = ' + tag)
               self.text.tag_delete(tag)
+              self.textConceal.tag_delete(tag)
         #print ("[setLine]row = "+str(row))
         # erase the line
         self.text.delete(tag_start, tag_end ) # erase the line
+        self.textConceal.delete(tag_start, tag_end )
         
 
         # Set the conditions at the start of the line
@@ -150,7 +146,7 @@ class TTXline:
         holdChar = 0x00
         holdMode  = False
         contiguous = True
-        concealed = True # @todo
+        concealed = False
         flashMode = False # @todo
 
         lastMosaicChar = ' '
@@ -161,11 +157,15 @@ class TTXline:
             # Convert control code ascii
             # @todo Regional mappings
             ch = chr(c)
+            if c < 0x08 or c >= 0x10 and c < 0x18: # colour codes cancel conceal mode
+                concealed = False
             #if c == 0x0f: # double size
              #   print("double size not implemented")  # Not the same as double height
             if c == 0x1e: # hold graphics - set at
                 holdMode = True
                 holdChar = lastMosaicChar # ' '
+            if c == 0x18: # conceal mode - set at
+                concealed = True
             if c == 0x19: # Contiguous graphics
                 contiguous = True
             if c == 0x1a: # Separated graphics
@@ -193,6 +193,8 @@ class TTXline:
                 else:              
                     ch = self.mapchar(ch) # text in alpha mode
             self.text.insert(rstr+str(i), ch)
+            # Idea, make a sort of mask for concelead areas
+            self.textConceal.insert(rstr+str(i), ch if concealed else ' ') # Save the characters that ARE concealed
             # set-after
             if c == 0x1f: # release graphics - set after
                 holdMode = False
@@ -269,11 +271,14 @@ class TTXline:
                 #tag_id = 'double' + '-' + 'cyan' + '-' + 'black'
                 #print("Setting attributes at " +rstr + str(i+set_at) + " to " + rstr + 'end *' + tag_id + '*')
                 self.text.tag_add(tag_id, rstr + str(i+set_at), rstr + 'end') #
+                self.textConceal.tag_add(tag_id, rstr + str(i+set_at), rstr + 'end') #
+
                 if text_height == 'double':
                     textFont = self.ttxfont4
                 else:
                     textFont = self.ttxfont2
                 self.text.tag_config(tag_id , font = textFont, foreground = foreground_colour, background = background_colour)
+                self.textConceal.tag_config(tag_id , font = textFont, foreground = foreground_colour, background = background_colour)
           
         return hasDoubleHeight
     
@@ -311,15 +316,19 @@ class TTXline:
         #@todo Change the colour of the page number while seeking a page
         self.text.delete("1.0", "1.8") # strip the control bytes
         self.text.insert("1.0", page) # add the page number
-        print("inserting " + page)
+        #print("inserting " + page)
         # self.text.insert("1.4", "    ") # pad the remaining space
         #self.text.tag_add("pageColour", "1.0", "1.7")
         if seeking or page[0] == 'H': # Page number goes green in HOLD or while seeking
-            self.text.tag_add("single-green1-black", "1.0", "1.7")
-            #self.text.tag_config("pageColour", foreground = "green1") # seeking
+            self.text.tag_add("pagenumber", "1.0", "1.7")
+            self.text.tag_config("pagenumber", foreground = "green1") # seeking
+            self.textConceal.tag_add("pagenumber", "1.0", "1.7")
+            self.textConceal.tag_config("pagenumber", foreground = "green1") # seeking
         else:
-            self.text.tag_add("single-white-black", "1.0", "1.7")
-            #self.text.tag_config("pageColour", foreground = "white") # found
+            self.text.tag_add("pagenumber", "1.0", "1.7")
+            self.text.tag_config("pagenumber", foreground = "white") # found
+            self.textConceal.tag_add("pagenumber", "1.0", "1.7")
+            self.textConceal.tag_config("pagenumber", foreground = "white") # found
           
         self.rowOffset = 0
   
@@ -332,4 +341,23 @@ class TTXline:
             return True
         return False
 
+    # Toggle concealed text
+    # This isn't working
+    def reveal(self, show):
+        # copy the text from the conceal version
+        #txt = self.textConceal.get("1.0", END)
+        #self.text.delete("1.0", END)
+        #self.text.insert(END, txt)
+        for row in range(24):
+            for col in range(40):
+                p0 = str(row + 1) + '.' + str(col)
+                ch = self.textConceal.get(p0) # The revealed character
+                if ch!=' ': # It might be concealed 
+                    if not show:
+                        ch = ' ' # or it could be hidden
+                    #print("ch = " + str(ord(ch)))
+                    p1 = str(row + 1) + '.' + str(col+1)
+                    self.text.insert(p0, ch)
+                    self.text.delete(p1)
+                    
 
