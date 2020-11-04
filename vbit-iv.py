@@ -44,7 +44,6 @@ elideRow = 0
 seeking = True # True while seeking a new page to display
 lastPacket = b"AB0123456789012345678901234567890123456789"
 holdMode = False
-revealMode = False # hidden
 
 # remote
 pageNum = "100"
@@ -115,13 +114,11 @@ def remote(ch):
     global lastPacket
     global seeking
     global holdMode
-    global revealMode
     if ch == 'h': # hold
         holdMode = not holdMode
         return
     if ch == 'r': # reveal-oh
-        revealMode = not revealMode
-        ttx.reveal(revealMode)
+        ttx.toggleReveal()
         return
     if ch>='0' and ch<='9':
         pageNum = pageNum + ch
@@ -184,10 +181,14 @@ def process(packet):
                 #printRow(packet)
         else:
         # @todo Need to copy all pages until a new header arrives
-            if capturing and row < 25:
-                printRow(packet, row+1)
-                if ttx.printRow(packet, row): # double height?
-                    elideRow = row+1  
+            if capturing:
+                if row < 25:
+                    printRow(packet, row+1)
+                    if ttx.printRow(packet, row): # double height?
+                        elideRow = row+1
+                else:
+                    if row == 27: # fastext
+                        ttx.decodeLinks(packet)
     ttx.mainLoop()
   
 # Remote control talks on port 6558

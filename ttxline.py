@@ -85,7 +85,7 @@ class TTXline:
         self.currentHeader = bytearray()
         self.currentHeader.extend(b'YZ0123456789012345678901234567890123456789') # header of the page that is being displayed
 
-        #self.textConceal = self.text
+        self.revealMode = False # hidden
     
     # true if while in graphics mode, it is a mosaic character. False if control or upper case alpha  
     def isMosaic(self, c):
@@ -192,8 +192,9 @@ class TTXline:
                     ch = ' '
                 else:              
                     ch = self.mapchar(ch) # text in alpha mode
-            self.text.insert(rstr+str(i), ch)
-            # Idea, make a sort of mask for concelead areas
+            # Add the character, unless it is hidden
+            self.text.insert(rstr+str(i), ch if not concealed else ' ')
+            # Keep the concealed characters only
             self.textConceal.insert(rstr+str(i), ch if concealed else ' ') # Save the characters that ARE concealed
             # set-after
             if c == 0x1f: # release graphics - set after
@@ -207,13 +208,7 @@ class TTXline:
         foreground_colour = 'white'
         background_colour = 'black'
         text_height = 'single'
-        # tagRowID = "WholeRow"+ str(row)
         # Set the initial colour for the row
-        #tagRowID = text_height + '-' + foreground_colour + '-' + background_colour
-        # We don't do this as it seems to take over priority.
-        # Oops. The tag priority depends on the order it was created. So white always beats colours :-(
-        # WSFN self.text.tag_add(tagRowID, tag_start, tag_end)
-        # self.text.tag_config(tagRowID, font=self.ttxfont2)
 
         hf=1
     
@@ -302,6 +297,7 @@ class TTXline:
             if not found:
                 self.currentHeader = buf # The whole header is updating
                 found = True
+                self.revealMode = False # New page starts with concealed text
                 # Now that we have found the page, dump all of the tags
                 # @todo Probably change this to tag_remove
                 # for tag in self.text.tag_names(): # This clears all tags BUT only when moving to a new page
@@ -341,21 +337,16 @@ class TTXline:
             return True
         return False
 
-    # Toggle concealed text
-    # This isn't working
-    def reveal(self, show):
-        # copy the text from the conceal version
-        #txt = self.textConceal.get("1.0", END)
-        #self.text.delete("1.0", END)
-        #self.text.insert(END, txt)
+    # show/hide concealed text
+    def toggleReveal(self):
+        self.revealMode = not self.revealMode
         for row in range(24):
             for col in range(40):
                 p0 = str(row + 1) + '.' + str(col)
                 ch = self.textConceal.get(p0) # The revealed character
                 if ch!=' ': # It might be concealed 
-                    if not show:
+                    if not self.revealMode:
                         ch = ' ' # or it could be hidden
-                    #print("ch = " + str(ord(ch)))
                     p1 = str(row + 1) + '.' + str(col+1)
                     self.text.insert(p0, ch)
                     self.text.delete(p1)

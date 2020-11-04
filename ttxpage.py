@@ -51,6 +51,14 @@ class TTXpage:
 
         self.root.update_idletasks()
         self.root.update()
+        
+    def deham(self, value):
+        # Deham with NO checking! @todo Parity and error correction
+        b0 = (value & 0x02) >> 1
+        b1 = (value & 0x08) >> 2
+        b2 = (value & 0x20) >> 3
+        b3 = (value & 0x80) >> 4
+        return b0+b1+b2+b3        
     
     def printRow(self, packet, row):
         if row < 0 or row > 24 :
@@ -65,6 +73,52 @@ class TTXpage:
         self.root.update_idletasks()
         self.root.update()
         
-    def reveal(self, show):
-        self.lines.reveal(show)
+    def toggleReveal(self):
+        self.lines.toggleReveal()
+        
+    # decode packet 27 fastext links
+    def decodeLinks(self, packet):
+        offset = 2
+        dc = self.deham(packet[6 + offset])
+        # print ("pacbitket 27 dc = " + str(dc))
+        # @todo extract the row 24 display 
+        for i in range(4): # @todo all 4
+            mag = self.deham(packet[0]) &0x07 # Magazine of this packet
+            addr = (i-1) * 6 + 7 + offset
+            b1 = self.deham(packet[addr])
+            b2 = self.deham(packet[addr+1])
+            M1 = self.deham(packet[addr+3]) & 0x08 # relative magazie of target link M1, M2, M3
+            M2 = self.deham(packet[addr+5]) & 0x04
+            M3 = self.deham(packet[addr+5]) & 0x08
+            tMag = mag
+            if M1:
+                tMag = tMag ^ 0x01
+            if M2:
+                tMag = tMag ^ 0x02
+            if M3:
+                tMag = tMag ^ 0x04
+            if tMag == 0:
+                tMag = 8
+            #print("mag = " + hex(mag) + ", Target tMag = " + hex(tMag) + ", " + hex(b1) + ", " + hex(b2))
+            print("link " + str(i) + " = " + str(tMag) + " " + hex(b2 * 0x10 + b1) )
+            
+            # @todo Calculate the relative magazine
+        
+    def decodeTriplet(self, b1, b2, b3):
+        b1 = self.reverse(b1)
+        b2 = self.reverse(b2)
+        b3 = self.reverse(b3)
+        # Don't care about errors. Just remove the hamming bits
+        c1 = (b1 & 0x04) >> 2 | (b1 & 0x70) >> 3 # .XXX.X..
+        c2 = (b2 & 0x7f) << 8-4 # 4..10
+        c3 = (b3 & 0x7f) << 16-5 # 11..17
+        
+        print ("c1 =" + hex(c1) + " c2 =" + hex(c2) + " c3 =" + hex(c3) )
+        
+        return c1 | c2 | c3
   
+    def reverse(self, x): # reverse the bit order in a byte
+        x = ((x & 0xF0) >> 4) | ((x & 0x0F) << 4)
+        x = ((x & 0xCC) >> 2) | ((x & 0x33) << 2)
+        x = ((x & 0xAA) >> 1) | ((x & 0x55) << 1)
+        return x  
