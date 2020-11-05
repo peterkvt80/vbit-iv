@@ -113,12 +113,39 @@ def remote(ch):
     global currentPage
     global lastPacket
     global seeking
-    global holdMode
+    global holdMode    
+
     if ch == 'h': # hold
         holdMode = not holdMode
         return
     if ch == 'r': # reveal-oh
         ttx.toggleReveal()
+        return
+    if ch == 'q': # quit
+        exit()
+    if ch == 'P': # f1 red link
+        currentMag = ttx.getMag(0)
+        currentPage = ttx.getPage(0)
+        print(str(currentMag) + " " + hex(currentPage))
+        seeking = True
+        return
+    if ch == 'Q': # f2: green link
+        currentMag = ttx.getMag(1)
+        currentPage = ttx.getPage(1)
+        print(str(currentMag) + " " + hex(currentPage))
+        seeking = True
+        return
+    if ch == 'R': # f3 yellow link
+        currentMag = ttx.getMag(2)
+        currentPage = ttx.getPage(2)
+        print(str(currentMag) + " " + hex(currentPage))
+        seeking = True
+        return
+    if ch == 'S': # f4 cyan link
+        currentMag = ttx.getMag(3)
+        currentPage = ttx.getPage(3)
+        print(str(currentMag) + " " + hex(currentPage))
+        seeking = True
         return
     if ch>='0' and ch<='9':
         pageNum = pageNum + ch
@@ -131,9 +158,9 @@ def remote(ch):
             print ("mag, page = " + str(currentMag)+', '+hex(currentPage))
             # send the last header again, just so we can update the target page number
             seeking = True # @todo If we select the page we are already on
-        ttx.printHeader(lastPacket,  'P'+pageNum+'    ', seeking)            
+        ttx.printHeader(lastPacket,  'P'+pageNum+'    ', seeking)    
     else:
-        print("Unhandled remote code: " + ch)
+        print("Unhandled remote code: " + ch)        
         # @todo Reveal, Fastext, Hold, Double height, Page up, Page Down, Mix
               
 def process(packet):

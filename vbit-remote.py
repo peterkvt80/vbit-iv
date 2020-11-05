@@ -61,10 +61,11 @@ ch = '?'
 while True:
     ch = readchar.readchar()
     if ord(ch) == 3 or ch == 'q':
+        socket.send_string(ch)
         exit()
-    print("Sending request " + str(ord(ch))) #str(key))
+    #print("Sending request " + str(ord(ch))) #str(key))
     socket.send_string(ch)
     #  Get the reply.
-    print("Sent request. Awaiting reply")
+    #print("Sent request. Awaiting reply")
     message = socket.recv()
-    print("Received reply" + str(message[0]))
+    #print("Received reply" + str(message[0]))

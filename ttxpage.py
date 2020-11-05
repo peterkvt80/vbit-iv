@@ -52,6 +52,17 @@ class TTXpage:
         self.root.update_idletasks()
         self.root.update()
         
+        self.mag=[None] * 4
+        self.page=[None] * 4
+        
+    # Return the page number for the link selected by index
+    def getPage(self, index):
+        return self.page[index]
+
+    # Return the magazine number for the link selected by index
+    def getMag(self, index):
+        return self.mag[index]
+        
     def deham(self, value):
         # Deham with NO checking! @todo Parity and error correction
         b0 = (value & 0x02) >> 1
@@ -99,8 +110,11 @@ class TTXpage:
                 tMag = tMag ^ 0x04
             if tMag == 0:
                 tMag = 8
+            page = b2 * 0x10 + b1
             #print("mag = " + hex(mag) + ", Target tMag = " + hex(tMag) + ", " + hex(b1) + ", " + hex(b2))
-            print("link " + str(i) + " = " + str(tMag) + " " + hex(b2 * 0x10 + b1) )
+            print("link " + str(i) + " = " + str(tMag) + " " + hex(page) )
+            self.mag[i] = tMag
+            self.page[i] = page
             
             # @todo Calculate the relative magazine
         
