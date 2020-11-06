@@ -22,7 +22,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-from tkinter import Tk, Text, END
+from tkinter import Tk, Text, END, NORMAL, DISABLED
 from tkinter.font import Font
 
 class TTXline:
@@ -275,15 +275,16 @@ class TTXline:
                 self.text.tag_config(tag_id , font = textFont, foreground = foreground_colour, background = background_colour)
                 self.textConceal.tag_config(tag_id , font = textFont, foreground = foreground_colour, background = background_colour)
           
+        self.text.config(state = DISABLED) # prevent editing
         return hasDoubleHeight
     
     # param page - An 8 character info string for the start of the header
     def printHeader(self, packet, page = "Header..", seeking = False):
-        global found
+        self.text.config(state = NORMAL) # allow editing
         buf = bytearray(packet) # convert to bytearray so we can modify it
         for i in range(10): # blank out the header bytes
             buf[i]=ord(' ')
-        #print('A')  
+        #print('TTL TRACE A')  
         for i in range(34,42): # copy the clock
             self.currentHeader[i] = buf[i]
             #print(str(type(self.currentHeader)))  
@@ -292,11 +293,11 @@ class TTXline:
         if seeking:
             #self.pageLoaded = False
             self.currentHeader = buf # The whole header is updating
-            found = False
+            self.found = False
         else:
-            if not found:
+            if not self.found:
                 self.currentHeader = buf # The whole header is updating
-                found = True
+                self.found = True
                 self.revealMode = False # New page starts with concealed text
                 # Now that we have found the page, dump all of the tags
                 # @todo Probably change this to tag_remove
@@ -327,11 +328,11 @@ class TTXline:
             self.textConceal.tag_config("pagenumber", foreground = "white") # found
           
         self.rowOffset = 0
+        self.text.config(state = DISABLED)
   
     # Return True if the row includes double height
     def printRow(self, packet, row):
-        # print(packet)
-        # @todo row
+        self.text.config(state = NORMAL) # allow editing
         if self.setLine(packet, row - self.rowOffset):
             self.rowOffset=self.rowOffset+1
             return True
@@ -340,6 +341,7 @@ class TTXline:
     # show/hide concealed text
     def toggleReveal(self):
         self.revealMode = not self.revealMode
+        self.text.config(state = NORMAL) # allow editing
         for row in range(24):
             for col in range(40):
                 p0 = str(row + 1) + '.' + str(col)
@@ -350,5 +352,6 @@ class TTXline:
                     p1 = str(row + 1) + '.' + str(col+1)
                     self.text.insert(p0, ch)
                     self.text.delete(p1)
+        self.text.config(state = DISABLED)
                     
 

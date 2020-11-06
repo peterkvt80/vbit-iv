@@ -55,6 +55,10 @@ class TTXpage:
         self.mag=[None] * 4
         self.page=[None] * 4
         
+        self.root.bind('<KeyPress>', self.onKeyPress)
+        
+        self.buffer = []
+        
     # Return the page number for the link selected by index
     def getPage(self, index):
         return self.page[index]
@@ -135,4 +139,21 @@ class TTXpage:
         x = ((x & 0xF0) >> 4) | ((x & 0x0F) << 4)
         x = ((x & 0xCC) >> 2) | ((x & 0x33) << 2)
         x = ((x & 0xAA) >> 1) | ((x & 0x55) << 1)
-        return x  
+        return x
+    
+    def onKeyPress(self, event):
+        self.buffer.append(event.char)
+        print("You pressed " + str(ord(event.char)))
+        
+    def getKey(self):
+        if self.buffer:
+            key = self.buffer.pop(0)
+            if key != '':
+                print("key == " + str(ord(key)))
+                if key == 105: # Mappings F1
+                    key = 'P'
+                return key
+        else:
+            key = ' '
+        return key
+

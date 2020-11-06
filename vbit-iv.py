@@ -162,7 +162,7 @@ def remote(ch):
     else:
         print("Unhandled remote code: " + ch)        
         # @todo Reveal, Fastext, Hold, Double height, Page up, Page Down, Mix
-              
+                      
 def process(packet):
     global capturing
     global currentMag
@@ -170,6 +170,7 @@ def process(packet):
     global elideRow
     global lastPacket
     global seeking
+    global holdMode
     result = mrag(packet[0], packet[1])
     mag = result[0]
     row = result[1]
@@ -181,10 +182,12 @@ def process(packet):
         #print("eliding row= " + str(elideRow))
         elideRow=0
         return
-  
+    #print("TRACE E")  
     # only display things that are on our magazine
     if currentMag == mag: # assume parallel mode
+        #print("TRACE F")  
         if row == 0:
+            #print("TRACE G1")  
             if holdMode:
                 ttx.printHeader(lastPacket, "HOLD    ", False)
                 return
@@ -192,21 +195,29 @@ def process(packet):
             # is this the magazine that we want?
             page = decodePage(packet)
             capturing = currentPage == page
+            #print("TRACE G2")  
             if capturing:
                 seeking = False # Capture starts if this is the right page
                 lastPacket = packet
+            #print("TRACE G3")  
             if not seeking: # new header starts rendering the page
                 clearPage() # @todo Decode header flags
                 # @todo Don't clear if the page is already loaded
+            #print("TRACE G4")  
             printRow(packet, 0, 0, "P{:1d}{:02X}    ".format(currentMag,currentPage))
+            #print("TRACE G5")  
             elideRow = 0
+            #print("TRACE G6")  
             # Show the whole header if we are capturing. Otherwise just show the clock
             ttx.printHeader(packet,  "P{:1d}{:02X}    ".format(currentMag,currentPage), seeking)
+            #print("TRACE G7")  
             #if capturing:
             #printRow(packet, 0, 0, "{:1d}{:02X}".format(mag,page))
             # print("\033[2J", end='') # clear screen  
                 #printRow(packet)
         else:
+            #print("TRACE GA")  
+
         # @todo Need to copy all pages until a new header arrives
             if capturing:
                 if row < 25:
@@ -216,7 +227,12 @@ def process(packet):
                 else:
                     if row == 27: # fastext
                         ttx.decodeLinks(packet)
+    #print("TRACE GY")  
     ttx.mainLoop()
+    #print("TRACE GX")
+    
+# Local control
+
   
 # Remote control talks on port 6558
 bind = "tcp://*:7777"
@@ -224,7 +240,7 @@ print("vbit-vi binding to " + bind)
 context = zmq.Context()
 socket = context.socket(zmq.REP)
 socket.bind(bind)  
-  
+#print("trace A")
 try:
     # This thread reads the input stream into a field buffer
     while True:
@@ -233,8 +249,17 @@ try:
             # packet=file.read(packetSize) # file based version
             packet=sys.stdin.buffer.read(packetSize) # read binary from stdin
             process(packet)
+            #print("trace B " + str(line))
+        # see if the keyboard has got a remote control code
+        key = ttx.getKey()
+        if key != ' ':
+            if key == 'q':
+                exit()
+            remote(key)
         time.sleep(0.020) # 20ms between fields
-        # Remote control zmq port 5557
+        #print("trace C")
+
+        
         try:
             #message = socket.recv()
             message = socket.recv(flags=zmq.NOBLOCK)
