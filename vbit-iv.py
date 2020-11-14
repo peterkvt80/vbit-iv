@@ -123,25 +123,25 @@ def remote(ch):
         return
     if ch == 'q': # quit
         exit()
-    if ch == 'P': # f1 red link
+    if ch == 'P' or ch == 'u': # f1 red link
         currentMag = ttx.getMag(0)
         currentPage = ttx.getPage(0)
         print(str(currentMag) + " " + hex(currentPage))
         seeking = True
         return
-    if ch == 'Q': # f2: green link
+    if ch == 'Q'  or ch == 'i': # f2: green link
         currentMag = ttx.getMag(1)
         currentPage = ttx.getPage(1)
         print(str(currentMag) + " " + hex(currentPage))
         seeking = True
         return
-    if ch == 'R': # f3 yellow link
+    if ch == 'R' or ch == 'o': # f3 yellow link
         currentMag = ttx.getMag(2)
         currentPage = ttx.getPage(2)
         print(str(currentMag) + " " + hex(currentPage))
         seeking = True
         return
-    if ch == 'S': # f4 cyan link
+    if ch == 'S' or ch == 'p': # f4 cyan link
         currentMag = ttx.getMag(3)
         currentPage = ttx.getPage(3)
         print(str(currentMag) + " " + hex(currentPage))
@@ -158,7 +158,9 @@ def remote(ch):
             print ("mag, page = " + str(currentMag)+', '+hex(currentPage))
             # send the last header again, just so we can update the target page number
             seeking = True # @todo If we select the page we are already on
-        ttx.printHeader(lastPacket,  'P'+pageNum+'    ', seeking)    
+        page_number = 'P' + pageNum
+        print("page number = " + page_number)
+        ttx.printHeader(lastPacket,  page_number+'    ', seeking)    
     else:
         print("Unhandled remote code: " + ch)        
         # @todo Reveal, Fastext, Hold, Double height, Page up, Page Down, Mix

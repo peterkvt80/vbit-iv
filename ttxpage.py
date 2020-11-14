@@ -116,7 +116,7 @@ class TTXpage:
                 tMag = 8
             page = b2 * 0x10 + b1
             #print("mag = " + hex(mag) + ", Target tMag = " + hex(tMag) + ", " + hex(b1) + ", " + hex(b2))
-            print("link " + str(i) + " = " + str(tMag) + " " + hex(page) )
+            #print("link " + str(i) + " = " + str(tMag) + " " + hex(page) )
             self.mag[i] = tMag
             self.page[i] = page
             

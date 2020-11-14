@@ -86,6 +86,14 @@ class TTXline:
         self.currentHeader.extend(b'YZ0123456789012345678901234567890123456789') # header of the page that is being displayed
 
         self.revealMode = False # hidden
+        
+    def deham(self, value):
+        # Deham with NO checking! @todo Parity and error correction
+        b0 = (value & 0x02) >> 1
+        b1 = (value & 0x08) >> 2
+        b2 = (value & 0x20) >> 3
+        b3 = (value & 0x80) >> 4
+        return b0+b1+b2+b3         
     
     # true if while in graphics mode, it is a mosaic character. False if control or upper case alpha  
     def isMosaic(self, c):
@@ -277,19 +285,35 @@ class TTXline:
           
         self.text.config(state = DISABLED) # prevent editing
         return hasDoubleHeight
+
+    def decodeFlags(self, packet):
+        flags = [0,0,0,0,0,0,0,0,0]
+        for i in range(8):
+            flags[i] = self.deham(packet[i+2])
+            print ("i="+str(i)+" packet = " + hex(flags[i]))
+        page = flags[1]*0x10 + flags[0]
+        C4 = (flags[3] & 0x08) > 0 # clear
+        C5 = (flags[5] & 0x04) > 0 # newsflash
+        print("Page = " + hex(page) + ", C4 = " + str(C4) + ", C5 = " + str(C5))
     
     # param page - An 8 character info string for the start of the header
     def printHeader(self, packet, page = "Header..", seeking = False):
+        # Drop this for now, self.decodeFlags(packet)
         self.text.config(state = NORMAL) # allow editing
         buf = bytearray(packet) # convert to bytearray so we can modify it
-        for i in range(10): # blank out the header bytes
-            buf[i]=ord(' ')
         #print('TTL TRACE A')  
         for i in range(34,42): # copy the clock
             self.currentHeader[i] = buf[i]
             #print(str(type(self.currentHeader)))  
             #print(str(type(buf)))
           
+        for i in range(10): # blank out the header bytes
+            buf[i]=buf[i] & 0x7f
+            if buf[i]<0x20:
+                buf[i]=0x20
+        for i in range(2,10):
+            buf[i]=ord(page[i-2])
+            
         if seeking:
             #self.pageLoaded = False
             self.currentHeader = buf # The whole header is updating
@@ -303,6 +327,7 @@ class TTXline:
                 # @todo Probably change this to tag_remove
                 # for tag in self.text.tag_names(): # This clears all tags BUT only when moving to a new page
                 #     self.text.tag_delete(tag)
+                print("Is this where we run clear?")
             #if not self.pageLoaded:
             #    self.pageLoaded = True  
             buf = self.currentHeader # The header stays on the loaded page
@@ -311,21 +336,21 @@ class TTXline:
 
         # Now that the buffer has the correct characters loaded, we can set the generated page number
         #@todo Change the colour of the page number while seeking a page
-        self.text.delete("1.0", "1.8") # strip the control bytes
-        self.text.insert("1.0", page) # add the page number
-        #print("inserting " + page)
+        #self.text.delete("1.0", "1.8") # strip the control bytes
+        #self.text.insert("1.0", "pagexxxx") # add the page number
+        #print("inserting <" + page +'>')
         # self.text.insert("1.4", "    ") # pad the remaining space
         #self.text.tag_add("pageColour", "1.0", "1.7")
         if seeking or page[0] == 'H': # Page number goes green in HOLD or while seeking
             self.text.tag_add("pagenumber", "1.0", "1.7")
             self.text.tag_config("pagenumber", foreground = "green1") # seeking
-            self.textConceal.tag_add("pagenumber", "1.0", "1.7")
-            self.textConceal.tag_config("pagenumber", foreground = "green1") # seeking
+            self.textConceal.tag_add("pagenumberc", "1.0", "1.7")
+            self.textConceal.tag_config("pagenumberc", foreground = "green1") # seeking
         else:
             self.text.tag_add("pagenumber", "1.0", "1.7")
             self.text.tag_config("pagenumber", foreground = "white") # found
-            self.textConceal.tag_add("pagenumber", "1.0", "1.7")
-            self.textConceal.tag_config("pagenumber", foreground = "white") # found
+            self.textConceal.tag_add("pagenumberc", "1.0", "1.7")
+            self.textConceal.tag_config("pagenumberc", foreground = "white") # found
           
         self.rowOffset = 0
         self.text.config(state = DISABLED)
