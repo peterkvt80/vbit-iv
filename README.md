@@ -21,7 +21,7 @@ It may work on Windows if you use the Windows version of VBIT2 but you are on yo
 # Running
 Move to your vbit-iv/ directory. There are a number of ways that you could run the code.
 ## Python
-The best method is to run the in-vision script as this starts everything and starts the vbit2 configured service.
+The easiest method is to run the in-vision script as this starts everything and starts the vbit2 configured service.
 
 ./innervision.py
 
@@ -32,8 +32,9 @@ To change the service, use the vbit configuration utility. You can manages servi
 vbit-config
 
 ## Command line
-$HOME/vbit2/vbit2 --dir /home/peterk/.teletext-services/Teefax | ./vbit-iv.py 1 0
-This command starts vbit2 with the Teefax service.
+$HOME/vbit2/vbit2 --dir $HOME/.teletext-services/Teefax | ./vbit-iv.py 1 0
+
+This command starts vbit2 with the Teefax service. Unlike the python startup script this doesn't use the vbit2 config system. You need to give it the name of one of the service that you installed using vbit-config (Ceefax, Chunkytext, SPARK, Teefax etc.). The last two numbers are the initial magazine (1..8) and the page number (0..99)
 
 
 ## Commands
