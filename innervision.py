@@ -22,23 +22,21 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
-# What is this going to be?
-# It will access a vbit2 installation on Linux and display teletext pages.
+#
+# Accesses a vbit2 installation on Linux and display teletext pages.
 # It enables you to view teletext services with exactly the same inconvenience as a
 # dumb TV picking up a broadcast teletext transmission.
 
-#import os
 import subprocess
 from vbitconfig import Config
 
-import sys
 import zmq
-import time
 import readchar
 context = zmq.Context()
-#  Socket to talk to server
-host = "tcp://localhost:7777"
-host = "tcp://192.168.1.85:7777"
+
+#  Remote control socket to talk to server
+host = "tcp://127.0.0.1:7777"
+# host = "tcp://192.168.1.85:7777"
 socket = context.socket(zmq.REQ)
 socket.connect(host)
 

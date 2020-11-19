@@ -78,7 +78,7 @@ class TTXpage:
     def printRow(self, packet, row):
         if row < 0 or row > 24 :
             return
-        return self.lines.printRow(packet, row)
+        self.lines.printRow(packet, row)
 
     def printHeader(self, packet, page, seeking):
         self.lines.printHeader(packet, page, seeking)
@@ -94,7 +94,7 @@ class TTXpage:
     # decode packet 27 fastext links
     def decodeLinks(self, packet):
         offset = 2
-        dc = self.deham(packet[6 + offset])
+        dc = self.deham(packet[6 + offset]) # designation code
         # print ("pacbitket 27 dc = " + str(dc))
         # @todo extract the row 24 display 
         for i in range(4): # @todo all 4

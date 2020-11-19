@@ -1,5 +1,5 @@
 # vbit-config.py
-# Teletext Stream to selector
+# Reads vbit2 config to set up suitable launch command strings
 #
 # Copyright (c) 2020 Peter Kwan
 #

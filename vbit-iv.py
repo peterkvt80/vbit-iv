@@ -58,30 +58,7 @@ if int(sys.argv[1])>0:
 print ("mag = "+str(currentMag))
 if int(sys.argv[2])>0:
     currentPage = int(sys.argv[2], 16)
-print ("page = "+str(currentPage))
-
-def clearPage():
-    return # kill the console print 
-    print("\033[2J", end='') # clear screen  
-    
-
-def printRow(packet, row=-1, col=-1, pagenum=''):
-    return # Kill the console print  
-    if row>-1 or col>-1:
-        if row == -1:
-            row = 0
-        if col == -1:
-            col = 0  
-        print("\033[" + str(row) + ";" + str(col) + "f", end ='')  
-    for i in range(2, 42):
-        x = packet[i] & 0x7f
-        if x < 0x020:
-            print ('.', end='')
-        else:
-            print ( chr(packet[i] & 0x7f), end = '' )
-    if pagenum != '':
-        print("\033[" + str(row) + ";" + str(col) + "f" + pagenum, end ='')  
-    print()
+print ("page = "+str(currentPage))    
 
 def deham(value):
     # Deham with NO checking! @todo Parity and error correction
@@ -102,9 +79,9 @@ def mrag(v1, v2):
         row = row + 1
     return mag, row
 
-def decodePage(packet):
-    tens =  deham(packet[3])
-    units = deham(packet[2])
+def decodePage(pkt):
+    tens =  deham(pkt[3])
+    units = deham(pkt[2])
     return tens * 0x10 + units
 
 def remote(ch):
@@ -114,14 +91,15 @@ def remote(ch):
     global lastPacket
     global seeking
     global holdMode    
-
+    if ch == '':
+        return
     if ch == 'h': # hold
         holdMode = not holdMode
         return
     if ch == 'r': # reveal-oh
         ttx.toggleReveal()
         return
-    if ch == 'q': # quit
+    if ch == 'q' or ord(ch) == 3: # quit
         exit()
     if ch == 'P' or ch == 'u': # f1 red link
         currentMag = ttx.getMag(0)
@@ -165,7 +143,7 @@ def remote(ch):
         print("Unhandled remote code: " + ch)        
         # @todo Reveal, Fastext, Hold, Double height, Page up, Page Down, Mix
                       
-def process(packet):
+def process(pkt):
     global capturing
     global currentMag
     global currentPage
@@ -173,7 +151,7 @@ def process(packet):
     global lastPacket
     global seeking
     global holdMode
-    result = mrag(packet[0], packet[1])
+    result = mrag(pkt[0], pkt[1])
     mag = result[0]
     row = result[1]
     # If this is a header, decode the page
@@ -195,23 +173,23 @@ def process(packet):
                 return
 #      print("\033[0;0fP", end='')
             # is this the magazine that we want?
-            page = decodePage(packet)
+            page = decodePage(pkt)
             capturing = currentPage == page
             #print("TRACE G2")  
             if capturing:
                 seeking = False # Capture starts if this is the right page
-                lastPacket = packet
+                lastPacket = pkt
             #print("TRACE G3")  
-            if not seeking: # new header starts rendering the page
-                clearPage() # @todo Decode header flags
+            #if not seeking: # new header starts rendering the page
+            #    clearPage() # @todo Decode header flags
                 # @todo Don't clear if the page is already loaded
             #print("TRACE G4")  
-            printRow(packet, 0, 0, "P{:1d}{:02X}    ".format(currentMag,currentPage))
+            #printRow(pkt, 0, 0, "P{:1d}{:02X}    ".format(currentMag,currentPage))
             #print("TRACE G5")  
             elideRow = 0
             #print("TRACE G6")  
             # Show the whole header if we are capturing. Otherwise just show the clock
-            ttx.printHeader(packet,  "P{:1d}{:02X}    ".format(currentMag,currentPage), seeking)
+            ttx.printHeader(pkt,  "P{:1d}{:02X}    ".format(currentMag,currentPage), seeking)
             #print("TRACE G7")  
             #if capturing:
             #printRow(packet, 0, 0, "{:1d}{:02X}".format(mag,page))
@@ -223,7 +201,7 @@ def process(packet):
         # @todo Need to copy all pages until a new header arrives
             if capturing:
                 if row < 25:
-                    printRow(packet, row+1)
+                    #printRow(packet, row+1)
                     if ttx.printRow(packet, row): # double height?
                         elideRow = row+1
                 else:
@@ -252,7 +230,7 @@ try:
             packet=sys.stdin.buffer.read(packetSize) # read binary from stdin
             process(packet)
             #print("trace B " + str(line))
-        # see if the keyboard has got a remote control code
+        # see if the keyboard has received a remote control code
         key = ttx.getKey()
         if key != ' ':
             if key == 'q':

@@ -37,8 +37,8 @@ print("Connecting to vbit-iv")
 context = zmq.Context()
 
 #  Socket to talk to server
-host = "tcp://localhost:7777"
-host = "tcp://192.168.1.85:7777"
+host = "tcp://127.0.0.1:7777"
+#host = "tcp://192.168.1.85:7777"
 socket = context.socket(zmq.REQ)
 socket.connect(host)
 
