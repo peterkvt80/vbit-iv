@@ -207,6 +207,8 @@ def process(pkt):
                 else:
                     if row == 27: # fastext
                         ttx.decodeLinks(packet)
+                    else:
+                        print("We have an unsupported packet row = " + str(row))
     #print("TRACE GY")  
     ttx.mainLoop()
     #print("TRACE GX")

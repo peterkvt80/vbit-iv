@@ -169,10 +169,13 @@ class TTXline:
                         holdChar = ch # save the character for later
                     lastMosaicChar = ch  
                 else:
-                    if holdMode:
-                        ch = holdChar # non printable and in hold
-                    else:  
-                        ch = ' ' # Non printable  
+                    if ch<' ': # Unprintable?
+                        if holdMode:
+                            ch = holdChar # non printable and in hold
+                        else:  
+                            ch = ' ' # Non printable
+                    else:
+                        ch = mapchar(ch, self.natOpt , 0) # text in alpha mode @todo implement group number
                 # if it is not a mosaic and we are in hold mode, substitute the character      
             else:
                 # alpha is way simpler  

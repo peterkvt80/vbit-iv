@@ -143,7 +143,8 @@ class TTXpage:
     
     def onKeyPress(self, event):
         self.buffer.append(event.char)
-        print("You pressed " + str(ord(event.char)))
+        if event.char!='':
+            print("You pressed " + str(ord(event.char)))
         
     def getKey(self):
         if self.buffer:
