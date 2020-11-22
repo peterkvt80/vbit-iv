@@ -204,11 +204,20 @@ def process(pkt):
                     #printRow(packet, row+1)
                     if ttx.printRow(packet, row): # double height?
                         elideRow = row+1
-                else:
-                    if row == 27: # fastext
-                        ttx.decodeLinks(packet)
-                    else:
-                        print("We have an unsupported packet row = " + str(row))
+                if row == 26:
+                    print("Unsupported packet type = " + str(row))
+                if row == 27: # fastext
+                    ttx.decodeLinks(packet)
+                if row == 28: # region
+                    ttx.decodeRow28(packet)
+                if row == 29: # fastext
+                    print("Unsupported packet type = " + str(row))
+                if row == 30: # fastext
+                    print("Unsupported packet type = " + str(row))
+                if row == 31: # fastext
+                    print("Unsupported packet type = " + str(row))
+                        # Page 32
+#ETS 300 706: May 1997
     #print("TRACE GY")  
     ttx.mainLoop()
     #print("TRACE GX")

@@ -90,6 +90,7 @@ class TTXline:
         
         # header flags
         self.natOpt = 0 # 0=EN, 1=FR, 2=SW/FI/HU, 3=CZ/SK, 4=DE, 5=PT/SP, 6=IT, 7=N/A
+        self.region = 0 # National option selection bits in X/28/0 format 1. Used by RE in tti files. 
         
     def deham(self, value):
         # Deham with NO checking! @todo Parity and error correction
@@ -175,14 +176,14 @@ class TTXline:
                         else:  
                             ch = ' ' # Non printable
                     else:
-                        ch = mapchar(ch, self.natOpt , 0) # text in alpha mode @todo implement group number
+                        ch = mapchar(ch, self.natOpt , self.region) # text in alpha mode @todo implement group number
                 # if it is not a mosaic and we are in hold mode, substitute the character      
             else:
                 # alpha is way simpler  
                 if ch < ' ':
                     ch = ' '
                 else:              
-                    ch = mapchar(ch, self.natOpt , 0) # text in alpha mode @todo implement group number
+                    ch = mapchar(ch, self.natOpt , self.region) # text in alpha mode @todo implement group number
             # Add the character, unless it is hidden
             self.text.insert(rstr+str(i), ch if not concealed else ' ')
             # Keep the concealed characters only

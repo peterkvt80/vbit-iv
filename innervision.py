@@ -45,15 +45,7 @@ config = Config()
 
 print("The currently configured service is " + config.service)
 launch = config.launch
-# This works fine except that the keyboard handler doesn't see the commands
-# it also is deprecated.
-# os.system(launch)
 
-# This is similarly great except for being unable to control it
-#stream = os.popen(launch)
-#print(stream.read())
-
-# What if we split them and just copied chunks of I/O between them?
 try:
     print('A opening '+config.service_stream)
     streamIn = subprocess.Popen(config.service_stream, shell=True, stdout=subprocess.PIPE, stdin=None)

@@ -95,9 +95,9 @@ class TTXpage:
     def decodeLinks(self, packet):
         offset = 2
         dc = self.deham(packet[6 + offset]) # designation code
-        # print ("pacbitket 27 dc = " + str(dc))
+        # print ("packet 27 dc = " + str(dc))
         # @todo extract the row 24 display 
-        for i in range(4): # @todo all 4
+        for i in range(4):
             mag = self.deham(packet[0]) &0x07 # Magazine of this packet
             addr = (i-1) * 6 + 7 + offset
             b1 = self.deham(packet[addr])
@@ -122,18 +122,20 @@ class TTXpage:
             
             # @todo Calculate the relative magazine
         
-    def decodeTriplet(self, b1, b2, b3):
-        b1 = self.reverse(b1)
-        b2 = self.reverse(b2)
-        b3 = self.reverse(b3)
+    def decodeTriplet(self, b1, b2, b3): # ETS: Page 22, section 8.3
+        #b1 = self.reverse(b1)
+        #b2 = self.reverse(b2)
+        #b3 = self.reverse(b3)
         # Don't care about errors. Just remove the hamming bits
         c1 = (b1 & 0x04) >> 2 | (b1 & 0x70) >> 3 # .XXX.X..
         c2 = (b2 & 0x7f) << 8-4 # 4..10
         c3 = (b3 & 0x7f) << 16-5 # 11..17
         
-        print ("c1 =" + hex(c1) + " c2 =" + hex(c2) + " c3 =" + hex(c3) )
+        result = c1 | c2 | c3
+        print ("c1 =" + hex(c1) + " c2 =" + hex(c2) + " c3 =" + hex(c3) + " " + hex(result))
         
-        return c1 | c2 | c3
+        
+        return result
   
     def reverse(self, x): # reverse the bit order in a byte
         x = ((x & 0xF0) >> 4) | ((x & 0x0F) << 4)
@@ -157,4 +159,24 @@ class TTXpage:
         else:
             key = ' '
         return key
+    
+    def dumpPacket(self, pkt):
+        for i in range(8):
+            print(str(i) + ":" + hex(pkt[i]) + ' ', end='')
+        print()
+    
+    def decodeRow28(self, pkt):
+        # All I really want is the regional set number. See table 4
+        dc = self.deham(pkt[3])
+        
+        self.dumpPacket(pkt)
+        x = self.decodeTriplet(pkt[3],pkt[4],pkt[5])
+        # We should validate this! It is only correct in X/28/0 format 1
+        # region number is bits 11 to 14. Regions are listed in Table 32
+        # @TODO This only decode the region code that VBIT2 puts out.
+        # There is a a huge amount more in X/28.
+        self.region = (x >> 10) & 0x0f
+        print("Packet 28 DC = " + str(dc) + " " + hex(x) + " region = " + str(self.region))
+        self.lines.region = self.region # National option
+
 
