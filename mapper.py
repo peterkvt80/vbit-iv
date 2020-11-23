@@ -39,6 +39,8 @@ def mapchar(c, option, region):
         return mapregion4(c, option)
     if region==6: # Russia
         return mapregion6(c, option) # turk + greek
+    if region==8: # Arabic
+        return mapregion8(c, option)
     print("Unimplemented region code " + str(region))
     return '¬'
 
@@ -148,6 +150,24 @@ def mapregion6(c, option): # Turkish-3/Greek-7
     if option==7:
         return mapGR(c) # greek
     print("Unknown language region 6, nat. option = " + str(option))
+    return mapEN(c)
+
+def mapregion8(c, option): # Arabic
+    if option==0:
+        return mapEN(c) # english
+    if option==1:
+        return mapFR(c) # franch
+    if option==7:
+        return mapAR(c) # arabic
+    print("Unknown language region 8, nat. option = " + str(option))
+    return mapEN(c)
+
+def mapregion10(c, option): # Arabic
+    if option==5:
+        return mapHE(c) # hebrew
+    if option==7:
+        return mapAR(c) # arabic
+    print("Unknown language region 10, nat. option = " + str(option))
     return mapEN(c)
 
 def mapEN(c): # English
@@ -507,4 +527,28 @@ def mapGR(c): # Greek region 6, option 7
     if c=='>':
         return chr(0x00bb) # right chevron
     return c
-    
+
+def mapAR(c): # Arabic region 8, option 7
+    if c=='>':
+        return '<'; # 3/c
+    if c=='<':
+        return '>'; # 3/e
+    return chr(ord(c)+0xe606-ord('&')) # 2/6 onwards
+
+def mapHE(c): # Hebrew region 10, option 5
+    if (c>0x5f) and (c<0x7b): # Hebrew characters
+        return chr(ord(c)+0x05d0-0x60)
+    mapper = { 
+        '#': chr(0x00A3), # 2/3 # is mapped to pound sign
+        '[': chr(0x2190), # 5/B Left arrow.
+        '\\': chr(0xbd), # 5/C Half
+        ']': chr(0x2192), # 5/D Right arrow.
+        '^': chr(0x2191), # 5/E Up arrow.
+        '_': chr(0x0023), # 5/F Underscore is hash sign
+        '{': chr(0x20aa), # 7/B sheqel
+        '|': chr(0x2016), # 7/C Double pipe
+        '}': chr(0xbe), # 7/D Three quarters
+        '~': chr(0x00f7) # 7/E Divide
+    }
+    return mapper.get(c, c)
+
