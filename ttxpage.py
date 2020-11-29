@@ -59,6 +59,10 @@ class TTXpage:
         
         self.buffer = []
         
+        # Level 1.5 character replacement
+        self.rowAddr = 0
+        self.colAddr = 0
+        
     # Return the page number for the link selected by index
     def getPage(self, index):
         return self.page[index]
@@ -132,10 +136,14 @@ class TTXpage:
         c3 = (b3 & 0x7f) << 16-5 # 11..17
         
         result = c1 | c2 | c3
-        print ("c1 =" + hex(c1) + " c2 =" + hex(c2) + " c3 =" + hex(c3) + " " + hex(result))
-        
-        
+        # print ("c1 =" + hex(c1) + " c2 =" + hex(c2) + " c3 =" + hex(c3) + " " + hex(result))                
         return result
+    
+    # decode triplet in X/26 etc.
+    # \param ix Triplet number 0 to 12
+    def getTriplet(self, ix, pkt):
+        i = (ix * 3) + 3
+        return self.decodeTriplet(pkt[i], pkt[i+1], pkt[i+2])
   
     def reverse(self, x): # reverse the bit order in a byte
         x = ((x & 0xF0) >> 4) | ((x & 0x0F) << 4)
@@ -167,9 +175,8 @@ class TTXpage:
     
     def decodeRow28(self, pkt):
         # All I really want is the regional set number. See table 4
-        dc = self.deham(pkt[3])
+        dc = self.deham(pkt[2])
         
-        self.dumpPacket(pkt)
         x = self.decodeTriplet(pkt[3],pkt[4],pkt[5])
         # We should validate this! It is only correct in X/28/0 format 1
         # region number is bits 11 to 14. Regions are listed in Table 32
@@ -178,5 +185,89 @@ class TTXpage:
         self.region = (x >> 10) & 0x0f
         print("Packet 28 DC = " + str(dc) + " " + hex(x) + " region = " + str(self.region))
         self.lines.region = self.region # National option
-
-
+        
+    def decodeRow26(self, pkt):
+        # There is a lot of stuff in X26. Initially just look at diacriticals
+        #self.dumpPacket(pkt)
+        dc = self.deham(pkt[3])
+        print("Packet 26 DC = " + str(dc))
+        for i in range (0, 12):
+            x = self.getTriplet(i, pkt)
+            data = (x >> 11) & 0x7f
+            mode = (x >> 6) & 0x1f
+            address = x & 0x3f
+            print("Packet 26 triplet = " + str(i) + " data = " + hex(data) + " mode = " + hex(mode) + " address = " + str(address), end='')
+            if address>=40 and address<=63: # It is a row address group
+                modeStr = {
+                    0x01: "Full row colour",
+                    0x02: "Reserved",
+                    0x03: "Reserved",
+                    0x04: "Set Active Position",
+                    0x05: "Reserved",
+                    0x06: "Reserved",
+                    0x07: "Address display row0",
+                    0x08: "PDC Data - Country",
+                    0x09: "PDC Data - Month and day",
+                    0x0a: "PDC Data - Cursor row, start time",
+                    0x0b: "PDC Data - Cursor row, end time",
+                    0x0c: "PDC",
+                    0x0d: "PDC",
+                    0x0e: "Reserved",
+                    0x0f: "Reserved",
+                    0x12: "Adaptive Object Invocation",
+                    0x19: "Reserved",
+                    0x1a: "Reserved",
+                    0x1b: "Reserved",
+                    0x1c: "Reserved",
+                    0x1d: "Reserved",
+                    0x1e: "Reserved",
+                    0x1f: "Termination marker",
+                    }
+            if address>=0 and address<=39: # It is a column address group
+                modeStr = {
+                    0x00: "Foreground colour",
+                    0x01: "Block mosaic character G1",
+                    0x02: "Smoothed mosaic G3",
+                    0x03: "Background colour",
+                    0x04: "Reserved",
+                    0x05: "Reserved",
+                    0x06: "PDC - Cursor column",
+                    0x07: "Additional flash functions",
+                    0x08: "Modified G0/G2 character set",
+                    0x09: "Character from G0 set (2.5, 3.5)",
+                    0x0a: "Reserved",
+                    0x0b: "Line drawing or smoothed mosaic G3 set (2.5, 3.5)",
+                    0x0c: "Display attributes",
+                    0x0d: "DRCS character invocation",
+                    0x0e: "Font style",
+                    0x0f: "Character from the G2 set",
+                    0x10: "G0 character without diacritical mark",
+                    0x11: "G0 character with diacritical mark",
+                    0x12: "G0 character with diacritical mark",
+                    0x13: "G0 character with diacritical mark",
+                    0x14: "G0 character with diacritical mark",
+                    0x15: "G0 character with diacritical mark",
+                    0x16: "G0 character with diacritical mark",
+                    0x17: "G0 character with diacritical mark",
+                    0x18: "G0 character with diacritical mark",
+                    0x19: "G0 character with diacritical mark",
+                    0x1a: "G0 character with diacritical mark",
+                    0x1b: "G0 character with diacritical mark",
+                    0x1c: "G0 character with diacritical mark",
+                    0x1d: "G0 character with diacritical mark",
+                    0x1e: "G0 character with diacritical mark",
+                    0x1f: "G0 character with diacritical mark",
+                    }
+            print (" mode = " + modeStr.get(mode, hex(mode)))
+            if address>=40 and address<=63: # It is a row address group
+                # @todo Modes between 0 and 0x1f
+                if mode == 0x04: # Set Active Position
+                    self.rowAddr = address - 40
+                    # print("rowAddr = " + str(self.rowAddr))
+            if address>=0 and address<=39: # It is a column address group
+                # @todo Modes between 0 and 0x1f
+                if mode & 0x10: # G0 character with diacritical mark
+                    self.colAddr = address
+                    dia = int(mode & 0x0f)
+                    mapChar = tuple((self.rowAddr, self.colAddr, dia))
+                    print("mapChar = " + str(mapChar[0]) + " " + str(mapChar[1]) + " " + str(mapChar[2]) + " ") 

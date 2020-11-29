@@ -90,7 +90,9 @@ class TTXline:
         
         # header flags
         self.natOpt = 0 # 0=EN, 1=FR, 2=SW/FI/HU, 3=CZ/SK, 4=DE, 5=PT/SP, 6=IT, 7=N/A
-        self.region = 0 # National option selection bits in X/28/0 format 1. Used by RE in tti files. 
+        self.region = 0 # National option selection bits in X/28/0 format 1. Used by RE in tti files.
+        
+        self.X26CharMappings = []
         
     def deham(self, value):
         # Deham with NO checking! @todo Parity and error correction

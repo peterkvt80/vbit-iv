@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Teletext Stream to Invision decoder
+# T42 Teletext Stream to In-vision decoder
 #
 # Copyright (c) 2020 Peter Kwan
 #
@@ -83,6 +83,13 @@ def decodePage(pkt):
     tens =  deham(pkt[3])
     units = deham(pkt[2])
     return tens * 0x10 + units
+
+def decodeSubcode(pkt):
+    s1 = deham(pkt[4])
+    s2 = deham(pkt[5]) & 0x07
+    s3 = deham(pkt[6])
+    s4 = deham(pkt[7]) & 0x03
+    return (s4 << 11) + (s3 << 7) + (s2 << 4) + s1
 
 def remote(ch):
     global pageNum
@@ -174,11 +181,13 @@ def process(pkt):
 #      print("\033[0;0fP", end='')
             # is this the magazine that we want?
             page = decodePage(pkt)
+            subcode = decodeSubcode(pkt) # Used to clear down page if changed. Also clears X26 char map
             capturing = currentPage == page
             #print("TRACE G2")  
             if capturing:
                 seeking = False # Capture starts if this is the right page
                 lastPacket = pkt
+                print("sub-code = " + hex(subcode))
             #print("TRACE G3")  
             #if not seeking: # new header starts rendering the page
             #    clearPage() # @todo Decode header flags
@@ -205,16 +214,16 @@ def process(pkt):
                     if ttx.printRow(packet, row): # double height?
                         elideRow = row+1
                 if row == 26:
-                    print("Unsupported packet type = " + str(row))
+                    ttx.decodeRow26(packet)                    
                 if row == 27: # fastext
                     ttx.decodeLinks(packet)
                 if row == 28: # region
                     ttx.decodeRow28(packet)
-                if row == 29: # fastext
+                if row == 29: # 
                     print("Unsupported packet type = " + str(row))
-                if row == 30: # fastext
+                if row == 30: # 
                     print("Unsupported packet type = " + str(row))
-                if row == 31: # fastext
+                if row == 31: # 
                     print("Unsupported packet type = " + str(row))
                         # Page 32
 #ETS 300 706: May 1997
