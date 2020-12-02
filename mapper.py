@@ -566,9 +566,62 @@ def mapdiacritical(ch, row, col, diacritical):
             if accent == 0: # grave
                 if ch=='A':
                     return chr(0xc0)
+                if ch=='E':
+                    return chr(0xc8)
+                if ch=='O':
+                    return chr(0xd2)
+                if ch=='U':
+                    return chr(0xd9)
+                if ch=='a':
+                    return chr(0xe0)
+                if ch=='e':
+                    return chr(0xe8)
+                if ch=='o':
+                    return chr(0xf2)
+                if ch=='u':
+                    return chr(0xf9)
+                # Cyrillics go here
             if accent == 2: # acute
+                if ch=='A':
+                    return chr(0xc1)
+                if ch=='E':
+                    return chr(0xc9)
+                if ch=='I':
+                    return chr(0xcd)
+                if ch=='O':
+                    return chr(0xd3)
+                if ch=='U':
+                    return chr(0xda)
+                if ch=='a':
+                    return chr(0xe1)
+                if ch=='e':
+                    return chr(0xe9)
+                if ch=='i':
+                    return chr(0xed)
+                if ch=='o':
+                    return chr(0xf3)
+                if ch=='u':
+                    return chr(0xfa)
+                if ch=='y':
+                    return chr(0xfd)
                 if ch=='C':
                     return chr(0x106)
+                if ch=='c':
+                    return chr(0x107)
+                if ch=='l':
+                    return chr(0x13a)
+                if ch=='N':
+                    return chr(0x143)
+                if ch=='n':
+                    return chr(0x144)
+                if ch=='R':
+                    return chr(0x154)
+                if ch=='r':
+                    return chr(0x155)
+                if ch=='S':
+                    return chr(0x15a)
+                if ch=='s':
+                    return chr(0x15b)
             if accent == 14: # ogonek
                 if ch=='A':
                     return chr(0x104)
