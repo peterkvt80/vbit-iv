@@ -258,7 +258,7 @@ class TTXpage:
                     0x1e: "G0 character with diacritical mark",
                     0x1f: "G0 character with diacritical mark",
                     }
-            print (" mode = " + modeStr.get(mode, hex(mode)))
+            #print (" mode = " + modeStr.get(mode, hex(mode)))
             if address>=40 and address<=63: # It is a row address group
                 # @todo Modes between 0 and 0x1f
                 if mode == 0x04: # Set Active Position
@@ -270,4 +270,9 @@ class TTXpage:
                     self.colAddr = address
                     dia = int(mode & 0x0f)
                     mapChar = tuple((self.rowAddr, self.colAddr, dia))
-                    print("mapChar = " + str(mapChar[0]) + " " + str(mapChar[1]) + " " + str(mapChar[2]) + " ") 
+                    self.lines.addMapping(mapChar)
+                    print("mapChar = " + str(mapChar[0]) + " " + str(mapChar[1]) + " " + str(mapChar[2]) + " ")
+                    
+    # Set a flag to clear down when starting the next page                    
+    def clear(self):
+        self.lines.clear()

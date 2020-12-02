@@ -44,6 +44,8 @@ elideRow = 0
 seeking = True # True while seeking a new page to display
 lastPacket = b"AB0123456789012345678901234567890123456789"
 holdMode = False
+subCode = 0 # The current page subcode
+lastSubcode = 0 # The previous carousel page subcode
 
 # remote
 pageNum = "100"
@@ -113,6 +115,7 @@ def remote(ch):
         currentPage = ttx.getPage(0)
         print(str(currentMag) + " " + hex(currentPage))
         seeking = True
+        ttx.clear()
         return
     if ch == 'Q'  or ch == 'i': # f2: green link
         currentMag = ttx.getMag(1)
@@ -149,6 +152,8 @@ def remote(ch):
     else:
         print("Unhandled remote code: " + ch)        
         # @todo Reveal, Fastext, Hold, Double height, Page up, Page Down, Mix
+    #if seeking:
+    #    ttx.clear()
                       
 def process(pkt):
     global capturing
@@ -158,6 +163,9 @@ def process(pkt):
     global lastPacket
     global seeking
     global holdMode
+    global subCode
+    global lastSubcode
+    
     result = mrag(pkt[0], pkt[1])
     mag = result[0]
     row = result[1]
@@ -187,11 +195,18 @@ def process(pkt):
             if capturing:
                 seeking = False # Capture starts if this is the right page
                 lastPacket = pkt
+                if subcode != lastSubcode:
+                    lastSubcode = subcode
+                    ttx.clear()
+                ttx.lines.clearX26()
                 print("sub-code = " + hex(subcode))
+                
+                
             #print("TRACE G3")  
             #if not seeking: # new header starts rendering the page
-            #    clearPage() # @todo Decode header flags
-                # @todo Don't clear if the page is already loaded
+            #    clearPage() # @todo Decode header flagsallow-hotplug can0
+
+            # @todo Don't clear if the page is already loaded
             #print("TRACE G4")  
             #printRow(pkt, 0, 0, "P{:1d}{:02X}    ".format(currentMag,currentPage))
             #print("TRACE G5")  

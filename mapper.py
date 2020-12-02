@@ -552,3 +552,24 @@ def mapHE(c): # Hebrew region 10, option 5
     }
     return mapper.get(c, c)
 
+# @param ch - character to map
+# @param diacritical to add (if possible) 0..15 from row 0x40 of Latin G2
+def mapdiacritical(ch, row, col, diacritical):
+    #print("[mapdiacritical] diacriticals on this page = " + str(len(diacritical)))
+    for i in range(0, len(diacritical)):
+        d = diacritical[i]
+        if row==d[0] and col==d[1] : # match character location
+            print("[mapdiacritical] row = " + str(row) + " col = " + str(col) + ", ch = " + ch + " dia = " + str(d[2]))
+            #ch='`'
+            # now see if we can add diacritical d[2] to character ch
+            accent = d[2]
+            if accent == 0: # grave
+                if ch=='A':
+                    return chr(0xc0)
+            if accent == 2: # acute
+                if ch=='C':
+                    return chr(0x106)
+            if accent == 14: # ogonek
+                if ch=='A':
+                    return chr(0x104)
+    return ch

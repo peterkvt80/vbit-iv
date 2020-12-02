@@ -24,7 +24,7 @@
 
 from tkinter import Text, END, NORMAL, DISABLED
 from tkinter.font import Font
-from mapper import mapchar
+from mapper import mapchar, mapdiacritical
 
 class TTXline:
     print("TTXLine created")
@@ -93,6 +93,7 @@ class TTXline:
         self.region = 0 # National option selection bits in X/28/0 format 1. Used by RE in tti files.
         
         self.X26CharMappings = []
+        self.clearFlag = False # Set by clear(), cleared by printHeader()
         
     def deham(self, value):
         # Deham with NO checking! @todo Parity and error correction
@@ -179,6 +180,7 @@ class TTXline:
                             ch = ' ' # Non printable
                     else:
                         ch = mapchar(ch, self.natOpt , self.region) # text in alpha mode @todo implement group number
+                        ch = mapdiacritical(ch, row, i, self.X26CharMappings)
                 # if it is not a mosaic and we are in hold mode, substitute the character      
             else:
                 # alpha is way simpler  
@@ -186,6 +188,7 @@ class TTXline:
                     ch = ' '
                 else:              
                     ch = mapchar(ch, self.natOpt , self.region) # text in alpha mode @todo implement group number
+                    ch = mapdiacritical(ch, row, i, self.X26CharMappings)
             # Add the character, unless it is hidden
             self.text.insert(rstr+str(i), ch if not concealed else ' ')
             # Keep the concealed characters only
@@ -285,6 +288,8 @@ class TTXline:
     
     # param page - An 8 character info string for the start of the header
     def printHeader(self, packet, page = "Header..", seeking = False):
+        if self.clearFlag:
+            self.clearFlag = False
         lines = self.text.index(END)
         line = lines.split('.')[0]
         if int(line)>26:
@@ -318,7 +323,8 @@ class TTXline:
                 # for tag in self.text.tag_names(): # This clears all tags BUT only when moving to a new page
                 #     self.text.tag_delete(tag)
                 self.decodeFlags(packet)
-                # print("Is this where we run clear?") # yes it is
+                print("Is this where we run clear?") # yes it is. However, we ALSO want to run it 
+                self.clearX26()
             #if not self.pageLoaded:
             #    self.pageLoaded = True  
             buf = self.currentHeader # The header stays on the loaded page
@@ -369,5 +375,20 @@ class TTXline:
                     self.text.insert(p0, ch)
                     self.text.delete(p1)
         self.text.config(state = DISABLED)
+        
+    # Clear stuff including all the page modifiers
+    def clear(self):
+        self.clearFlag = True
+        self.clearX26()
+        self.region = 0
                     
-
+    # Clear any X26 mappings
+    def clearX26(self):
+        print("[clearX26] called")
+        self.X26CharMappings = []
+        
+    def addMapping(self, mappedChar):
+        #print("[addMapping] " + str(mappedChar[0]) + " " + str(mappedChar[1]))
+        self.X26CharMappings.append(mappedChar)
+        total = len(self.X26CharMappings)
+        print("[addMapping] count = " + str(total))
