@@ -41,6 +41,8 @@ def mapchar(c, option, region):
         return mapregion6(c, option) # turk + greek
     if region==8: # Arabic
         return mapregion8(c, option)
+    if region==10: # Arabic @todo G0/G2
+        return mapregion10(c, option)
     print("Unimplemented region code " + str(region))
     return '¬'
 
@@ -622,6 +624,135 @@ def mapdiacritical(ch, row, col, diacritical):
                     return chr(0x15a)
                 if ch=='s':
                     return chr(0x15b)
+            if accent == 3: # circumflex
+                if ch=='A':
+                    return chr(0xc2)
+                if ch=='O':
+                    return chr(0xd4)
+                if ch=='U':
+                    return chr(0xd8)
+                if ch=='a':
+                    return chr(0xe2)
+                if ch=='e':
+                    return chr(0xea)
+                if ch=='i':
+                    return chr(0xee)
+                if ch=='o':
+                    return chr(0xf4)
+                if ch=='u':
+                    return chr(0xfb)
+                if ch=='C':
+                    return chr(0x108)
+                if ch=='c':
+                    return chr(0x109)
+                if ch=='G':
+                    return chr(0x11c)
+                if ch=='g':
+                    return chr(0x11d)
+                if ch=='H':
+                    return chr(0x124)
+                if ch=='h':
+                    return chr(0x125)
+                if ch=='J':
+                    return chr(0x134)
+                if ch=='j':
+                    return chr(0x135)
+                if ch=='S':
+                    return chr(0x15c)
+                if ch=='s':
+                    return chr(0x15d)
+                if ch=='W':
+                    return chr(0x174)
+                if ch=='w':
+                    return chr(0x175)
+                if ch=='Y':
+                    return chr(0x176)
+                if ch=='y':
+                    return chr(0x177)
+                
+            if accent == 4: # tilde ~
+                if ch=='A':
+                    return chr(0xc3)
+                if ch=='N':
+                    return chr(0xd1)
+                if ch=='O':
+                    return chr(0xd5)
+                if ch=='a':
+                    return chr(0xe3)
+                if ch=='n':
+                    return chr(0xf1)
+                if ch=='o':
+                    return chr(0xf5)
+                if ch=='I':
+                    return chr(0x128)
+                if ch=='i':
+                    return chr(0x129)
+                if ch=='U':
+                    return chr(0x168)
+                if ch=='u':
+                    return chr(0x169)
+
+            if accent == 5: # macron (over line)
+                if ch=='A':
+                    return chr(0x100)
+                if ch=='a':
+                    return chr(0x101)
+                if ch=='E':
+                    return chr(0x112)
+                if ch=='e':
+                    return chr(0x113)
+                if ch=='I':
+                    return chr(0x12a)
+                if ch=='i':
+                    return chr(0x12b)
+                if ch=='O':
+                    return chr(0x14c)
+                if ch=='o':
+                    return chr(0x14d)
+                if ch=='U':
+                    return chr(0x16a)
+                if ch=='u':
+                    return chr(0x16b)
+
+            if accent == 6: # breve
+                if ch=='E':
+                    return chr(0x114)
+                if ch=='e':
+                    return chr(0x115)
+                if ch=='G':
+                    return chr(0x11e)
+                if ch=='g':
+                    return chr(0x11f)
+                if ch=='I':
+                    return chr(0x12c)
+                if ch=='i':
+                    return chr(0x12d)
+                if ch=='O':
+                    return chr(0x14e)
+                if ch=='o':
+                    return chr(0x14f)
+
+            if accent == 7: # dot above
+                if ch=='C':
+                    return chr(0x10A)
+                if ch=='c':
+                    return chr(0x10B)
+                if ch=='E':
+                    return chr(0x116)
+                if ch=='e':
+                    return chr(0x117)
+                if ch=='G':
+                    return chr(0x120)
+                if ch=='g':
+                    return chr(0x121)
+                if ch=='I':
+                    return chr(0x130)
+                if ch=='Z':
+                    return chr(0x17B)
+                if ch=='z':
+                    return chr(0x17C)
+
+
             if accent == 14: # ogonek
                 if ch=='A':
                     return chr(0x104)
