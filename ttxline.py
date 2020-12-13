@@ -25,12 +25,14 @@
 from tkinter import Text, END, NORMAL, DISABLED
 from tkinter.font import Font
 from mapper import mapchar, mapdiacritical
+from clut import clut, Clut
 
 class TTXline:
     print("TTXLine created")
     
-    # Map a teletext colour nuber to an actual colour
-    def getcolour(self, c):    
+    # Map a teletext colour number to an actual colour
+    # I suspect that the CLUT 
+    def getcolourOLD(self, c):    
         switcher = {
         0: "black",
         1: "red",
@@ -42,6 +44,12 @@ class TTXline:
         7: "white"
         }
         return switcher.get(c, "white")
+
+    # Map a teletext colour number to an actual colour
+    # I suspect that the CLUT 
+    def getcolour(self, c):
+        global clut
+        return clut.clut0[c]
     
     def __init__(self, root_param):
         # this is where we define a Text object and set it up  
@@ -391,4 +399,4 @@ class TTXline:
         #print("[addMapping] " + str(mappedChar[0]) + " " + str(mappedChar[1]))
         self.X26CharMappings.append(mappedChar)
         total = len(self.X26CharMappings)
-        print("[addMapping] count = " + str(total))
+        #print("[addMapping] count = " + str(total))

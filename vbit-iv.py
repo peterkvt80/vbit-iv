@@ -27,6 +27,8 @@ import sys
 import time
 from ttxpage import TTXpage
 import zmq
+from packet import Packet
+from clut import clut, Clut
 
 
 # Globals
@@ -60,7 +62,9 @@ if int(sys.argv[1])>0:
 print ("mag = "+str(currentMag))
 if int(sys.argv[2])>0:
     currentPage = int(sys.argv[2], 16)
-print ("page = "+str(currentPage))    
+print ("page = "+str(currentPage))
+
+packet = Packet()
 
 def deham(value):
     # Deham with NO checking! @todo Parity and error correction
@@ -165,6 +169,7 @@ def process(pkt):
     global holdMode
     global subCode
     global lastSubcode
+    global clut
     
     result = mrag(pkt[0], pkt[1])
     mag = result[0]
@@ -199,6 +204,7 @@ def process(pkt):
                     lastSubcode = subcode
                     ttx.clear()
                 ttx.lines.clearX26()
+                clut.reset() # @todo Do we need to save colours in some cases?
                 print("sub-code = " + hex(subcode))
                 
                 
@@ -225,15 +231,16 @@ def process(pkt):
         # @todo Need to copy all pages until a new header arrives
             if capturing:
                 if row < 25:
-                    #printRow(packet, row+1)
-                    if ttx.printRow(packet, row): # double height?
+                    #printRow(pkt, row+1)
+                    if ttx.printRow(pkt, row): # double height?
                         elideRow = row+1
                 if row == 26:
-                    ttx.decodeRow26(packet)                    
+                    ttx.decodeRow26(pkt)                    
                 if row == 27: # fastext
-                    ttx.decodeLinks(packet)
+                    ttx.decodeLinks(pkt)
                 if row == 28: # region
-                    ttx.decodeRow28(packet)
+                    ttx.decodeRow28(pkt)
+                    packet.decode(pkt, 28)
                 if row == 29: # 
                     print("Unsupported packet type = " + str(row))
                 if row == 30: # 
@@ -262,8 +269,8 @@ try:
         # load a field of 16 vbi lines
         for line in range(16):  
             # packet=file.read(packetSize) # file based version
-            packet=sys.stdin.buffer.read(packetSize) # read binary from stdin
-            process(packet)
+            # packet=sys.stdin.buffer.read(packetSize) # read binary from stdin
+            process(sys.stdin.buffer.read(packetSize))
             #print("trace B " + str(line))
         # see if the keyboard has received a remote control code
         key = ttx.getKey()

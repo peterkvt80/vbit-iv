@@ -144,6 +144,14 @@ class TTXpage:
     def getTriplet(self, ix, pkt):
         i = (ix * 3) + 3
         return self.decodeTriplet(pkt[i], pkt[i+1], pkt[i+2])
+
+    # @param pkt - An XX26/28.29 packet
+    # @return - Array of 13 numbers, the decoded triplets
+    def decodeTriplets(self, pkt):
+        arr = []
+        for i in range(13):
+            arr.append( self.getTriplet(i, pkt) )
+        return arr
   
     def reverse(self, x): # reverse the bit order in a byte
         x = ((x & 0xF0) >> 4) | ((x & 0x0F) << 4)
@@ -177,26 +185,33 @@ class TTXpage:
         # All I really want is the regional set number. See table 4
         dc = self.deham(pkt[2])
         
-        x = self.decodeTriplet(pkt[3],pkt[4],pkt[5])
+        tp =  self.decodeTriplets(pkt)
+        x = tp[0]
+        function = x & 0x0f # Page function. (0 = basic level 1 page)
+        encoding= (x >> 4) & 0x07 # Page encoding (0 = 7 bit odd parity)
+
+        print("X/28 " + hex(tp[0]) + ", "+ hex(tp[1]) + ", "+ hex(tp[2]) + ", "+ hex(tp[3]) + ", "+ hex(tp[4]) + ", "+ hex(tp[5]))
         # We should validate this! It is only correct in X/28/0 format 1
         # region number is bits 11 to 14. Regions are listed in Table 32
-        # @TODO This only decode the region code that VBIT2 puts out.
+        # @TODO This only decodes the region code that VBIT2 puts out.
         # There is a a huge amount more in X/28.
         self.region = (x >> 10) & 0x0f
-        print("Packet 28 DC = " + str(dc) + " " + hex(x) + " region = " + str(self.region))
+        print("Packet 28 DC(" + hex(dc) + ") " + hex(x) + " region = " + str(self.region))
         self.lines.region = self.region # National option
-        
+    ### IN PROGRESS: Move packet handling to packet.py    
     def decodeRow26(self, pkt):
         # There is a lot of stuff in X26. Initially just look at diacriticals
         #self.dumpPacket(pkt)
-        dc = self.deham(pkt[3])
+        dc = self.deham(pkt[2])
+        tp =  self.decodeTriplets(pkt)
         print("Packet 26 DC = " + str(dc))
         for i in range (0, 12):
-            x = self.getTriplet(i, pkt)
+            x = tp[i] # self.getTriplet(i, pkt)
             data = (x >> 11) & 0x7f
             mode = (x >> 6) & 0x1f
             address = x & 0x3f
-            print("Packet 26 triplet = " + str(i) + " data = " + hex(data) + " mode = " + hex(mode) + " address = " + str(address), end='')
+            if mode != 0x1f: # filter out termination marker
+                print("Packet 26 triplet = " + str(i) + " data = " + hex(data) + " mode = " + hex(mode) + " address = " + str(address), end='')
             if address>=40 and address<=63: # It is a row address group
                 modeStr = {
                     0x01: "Full row colour",
@@ -258,20 +273,34 @@ class TTXpage:
                     0x1e: "G0 character with diacritical mark",
                     0x1f: "G0 character with diacritical mark",
                     }
-            #print (" mode = " + modeStr.get(mode, hex(mode)))
+            if mode == 0x1f: # A termination marker, nothing more to come
+                return 
+            print (" mode = " + modeStr.get(mode, hex(mode)))
             if address>=40 and address<=63: # It is a row address group
                 # @todo Modes between 0 and 0x1f
+#When data field D6 and D5 are both set to '0', bits D4 - D0 define the background
+#colour. Bits D4 and D3 select a CLUT in the Colour Map of table 30, and bits D2 -
+#D0 select an entry from that CLUT. All other data field values are reserved.
+#The effect of this attribute persists to the end of a display row unless overridden
+#by either a spacing or a non-spacing attribute defining the background colour.
                 if mode == 0x04: # Set Active Position
                     self.rowAddr = address - 40
+                    if data<40:
+                        self.colAddr = data
                     # print("rowAddr = " + str(self.rowAddr))
             if address>=0 and address<=39: # It is a column address group
                 # @todo Modes between 0 and 0x1f
-                if mode & 0x10: # G0 character with diacritical mark
+                if mode == 0x03: #Background colour
+                    if (data & 0x60) == 0:
+                        clut = (data >> 3) & 0x03
+                        ix = data & 0x07
+                        print ("set background colour at (" + str(self.rowAddr) + ", " + str(self.colAddr) + ") to " + str(clut) + "[" + str(ix) +']')
+                if mode & 0x10 and mode != 0x1f: # G0 character with diacritical mark
                     self.colAddr = address
                     dia = int(mode & 0x0f)
                     mapChar = tuple((self.rowAddr, self.colAddr, dia))
                     self.lines.addMapping(mapChar)
-                    print("mapChar = " + str(mapChar[0]) + " " + str(mapChar[1]) + " " + str(mapChar[2]) + " ")
+                    # print("mapChar = " + str(mapChar[0]) + " " + str(mapChar[1]) + " " + str(mapChar[2]) + " ")
                     
     # Set a flag to clear down when starting the next page                    
     def clear(self):
