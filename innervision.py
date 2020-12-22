@@ -47,11 +47,8 @@ print("The currently configured service is " + config.service)
 launch = config.launch
 
 try:
-    print('A opening '+config.service_stream)
     streamIn = subprocess.Popen(config.service_stream, shell=True, stdout=subprocess.PIPE, stdin=None)
-    print('B')
     streamOut = subprocess.Popen(config.render, shell=True, stdin=streamIn.stdout)
-    print('C')
     
     #  main loop. Get character, send request to vbit-i
     ch = '?'

@@ -26,13 +26,14 @@ from tkinter import Text, END, NORMAL, DISABLED
 from tkinter.font import Font
 from mapper import mapchar, mapdiacritical
 from clut import clut, Clut
+from packet import Packet, metaData
 
 class TTXline:
     print("TTXLine created")
-    
+
     # Map a teletext colour number to an actual colour
-    # I suspect that the CLUT 
-    def getcolourOLD(self, c):    
+    # I suspect that the CLUT
+    def getcolourOLD(self, c):
         switcher = {
         0: "black",
         1: "red",
@@ -46,13 +47,13 @@ class TTXline:
         return switcher.get(c, "white")
 
     # Map a teletext colour number to an actual colour
-    # I suspect that the CLUT 
+    # I suspect that the CLUT
     def getcolour(self, c):
         global clut
         return clut.clut0[c]
-    
+
     def __init__(self, root_param):
-        # this is where we define a Text object and set it up  
+        # this is where we define a Text object and set it up
         self.root = root_param
         self.text = Text(self.root)
 
@@ -62,14 +63,14 @@ class TTXline:
 
         lines = 25
 
-        self.fontH=-round((-1+self.height_value/(lines+1)))# 
+        self.fontH=-round((-1+self.height_value/(lines+1)))#
         # self.ttxfont0 = Font(family='teletext2', size=round(self.fontH/2))
         self.ttxfont2 = Font(family='teletext2', size=round(self.fontH))
         self.ttxfont4 = Font(family='teletext4', size=round(self.fontH*1.95))
 
         self.text = Text(self.root, width = 40, height = lines) # The normal text
         self.textConceal = Text(self.root, width = 40, height = lines) # Copy of text but with reveals hidden
-        
+
         # Most of these options are failed attempts to remove the single pixel lines
         self.text.config(borderwidth=0, foreground='white', background='black', font=self.ttxfont2, padx=0, pady=0, autoseparators=0, highlightbackground='black')
         self.textConceal.config(borderwidth=0, foreground='white', background='black', font=self.ttxfont2, padx=0, pady=0, autoseparators=0, highlightbackground='black')
@@ -80,8 +81,8 @@ class TTXline:
                 self.textConceal.insert(END, "     VBIT IN-VISION                     \n")
                 tag_id = "dbl"
                 self.text.tag_add(tag_id, "12.0", '12.end')
-                self.text.tag_config(tag_id, font=self.ttxfont4, offset=0, foreground = 'orange') # double height                
-            else:    
+                self.text.tag_config(tag_id, font=self.ttxfont4, offset=0, foreground = 'orange') # double height
+            else:
                 self.text.insert(END, "                                        \n")
                 self.textConceal.insert(END, "                                        \n")
         #self.text.tag_add("all", "1.0", END) # test to delete
@@ -95,30 +96,29 @@ class TTXline:
         self.currentHeader.extend(b'YZ0123456789012345678901234567890123456789') # header of the page that is being displayed
 
         self.revealMode = False # hidden
-        
+
         # header flags
         self.natOpt = 0 # 0=EN, 1=FR, 2=SW/FI/HU, 3=CZ/SK, 4=DE, 5=PT/SP, 6=IT, 7=N/A
-        self.region = 0 # National option selection bits in X/28/0 format 1. Used by RE in tti files.
-        
-        self.X26CharMappings = []
+        # self.region = 0 # National option selection bits in X/28/0 format 1. Used by RE in tti files.
+
         self.clearFlag = False # Set by clear(), cleared by printHeader()
-        
+
     def deham(self, value):
         # Deham with NO checking! @todo Parity and error correction
         b0 = (value & 0x02) >> 1
         b1 = (value & 0x08) >> 2
         b2 = (value & 0x20) >> 3
         b3 = (value & 0x80) >> 4
-        return b0+b1+b2+b3         
-        
-    # true if while in graphics mode, it is a mosaic character. False if control or upper case alpha  
+        return b0+b1+b2+b3
+
+    # true if while in graphics mode, it is a mosaic character. False if control or upper case alpha
     def isMosaic(self, ch):
         return ch & 0x20; # Bit 6 set?
 
     # clear and replace the line contents
     # @param packet : packet to write
     # @param row : row number to write (starting from 0)
-    def setLine(self, packet, row):
+    def setLine(self, pkt, row):
         # It has two phases
         # 1) Place all the characters on the line
         # 2) Set their attributes: colour and font size
@@ -138,7 +138,7 @@ class TTXline:
         # erase the line
         self.text.delete(tag_start, tag_end ) # erase the line
         self.textConceal.delete(tag_start, tag_end )
-        
+
 
         # Set the conditions at the start of the line
         graphicsMode = False
@@ -150,10 +150,10 @@ class TTXline:
         flashMode = False # @todo
 
         lastMosaicChar = ' '
-    
+
         # PASS 1: put the characters in. Selects glyphs for alpha, contiguous gfx, separated gxf
         for i in range(40):
-            c = packet[i+2] & 0x7f # strip parity
+            c = pkt[i+2] & 0x7f # strip parity
             # Convert control code ascii
             # @todo Regional mappings
             ch = chr(c)
@@ -169,34 +169,34 @@ class TTXline:
             if c == 0x19: # Contiguous graphics
                 contiguous = True
             if c == 0x1a: # Separated graphics
-                contiguous = False  
+                contiguous = False
             if graphicsMode:
-                # If it is a mosaic, work out what character it is  
-                if self.isMosaic(c):        
+                # If it is a mosaic, work out what character it is
+                if self.isMosaic(c):
                     if contiguous:
                         ch = chr(c + 0x0e680 - 0x20) # contiguous
-                    else:  
-                        ch = chr(c + 0x0e680) # separate            
+                    else:
+                        ch = chr(c + 0x0e680) # separate
                     if holdMode:
                         holdChar = ch # save the character for later
-                    lastMosaicChar = ch  
+                    lastMosaicChar = ch
                 else:
                     if ch<' ': # Unprintable?
                         if holdMode:
                             ch = holdChar # non printable and in hold
-                        else:  
+                        else:
                             ch = ' ' # Non printable
                     else:
-                        ch = mapchar(ch, self.natOpt , self.region) # text in alpha mode @todo implement group number
-                        ch = mapdiacritical(ch, row, i, self.X26CharMappings)
-                # if it is not a mosaic and we are in hold mode, substitute the character      
+                        ch = mapchar(ch, self.natOpt , metaData.getRegion()) # text in alpha mode @todo implement group number
+                        ch = mapdiacritical(ch, row, i, metaData.X26CharMappings)
+                # if it is not a mosaic and we are in hold mode, substitute the character
             else:
-                # alpha is way simpler  
+                # alpha is way simpler
                 if ch < ' ':
                     ch = ' '
-                else:              
-                    ch = mapchar(ch, self.natOpt , self.region) # text in alpha mode @todo implement group number
-                    ch = mapdiacritical(ch, row, i, self.X26CharMappings)
+                else:
+                    ch = mapchar(ch, self.natOpt , metaData.getRegion()) # text in alpha mode @todo implement group number
+                    ch = mapdiacritical(ch, row, i, metaData.X26CharMappings)
             # Add the character, unless it is hidden
             self.text.insert(rstr+str(i), ch if not concealed else ' ')
             # Keep the concealed characters only
@@ -208,7 +208,7 @@ class TTXline:
                 graphicsMode = False
             if c >= 0x10 and c < 0x18: # Mosaic colour
                 graphicsMode = True
-                
+
         # PASS 2: Add text attributes: font, colour, flash
         foreground_colour = 'white'
         background_colour = 'black'
@@ -219,9 +219,9 @@ class TTXline:
         # row
         row = str(row + 1)
         ix= 0
-        attr = text_height 
+        attr = text_height
         for i in range(40):
-            c = packet[i+2] & 0x7f
+            c = pkt[i+2] & 0x7f
             ch = chr(c)
             #if i==1 and c<0x20:
             #print (hex(c))
@@ -237,11 +237,11 @@ class TTXline:
             # @todo Doing another pass for the offset is the only way to make it work correctly, probably
             if c == 0x0d: # double height
                 text_height = 'double'
-                hasDoubleHeight = True  
+                hasDoubleHeight = True
                 attributeChanged = True
                 #tag_id = "thd"+str(row)+"-"+str(i)
                 #tag_id = text_height + '-' + foreground_colour + '-' + background_colour
-                #self.text.tag_add(tag_id, rstr + str(i+1), rstr + 'end') # column + 1 - set-after         
+                #self.text.tag_add(tag_id, rstr + str(i+1), rstr + 'end') # column + 1 - set-after
                 #print("Setting height attributes " + tag_id)
                 ##self.text.tag_config(tag_id, font=self.ttxfont4, offset=0) # double height
 
@@ -261,8 +261,8 @@ class TTXline:
                 foreground_colour = self.getcolour(c-0x10)
                 attributeChanged = True
 
-            if attributeChanged:          
-                # tag_id identifies the row 
+            if attributeChanged:
+                # tag_id identifies the row
                 tag_id = row + '-' + str(ix) + '-' + text_height + '-' + foreground_colour + '-' + background_colour
                 ix = ix + 1
 #                tag_id = row + '-' + str(ix++) + '-' + text_height + '-' + foreground_colour + '-' + background_colour
@@ -277,7 +277,7 @@ class TTXline:
                     textFont = self.ttxfont2
                 self.text.tag_config(tag_id , font = textFont, foreground = foreground_colour, background = background_colour)
                 self.textConceal.tag_config(tag_id , font = textFont, foreground = foreground_colour, background = background_colour)
-          
+
         self.text.config(state = DISABLED) # prevent editing
         return hasDoubleHeight
 
@@ -293,7 +293,7 @@ class TTXline:
         self.natOpt = (flags[7] >> 1) & 0x07 # C12, C13, C14
         C11 = flags[7] & 0x01 # Serial tx
         print("Page = " + hex(page) + ", C4(clear) = " + str(C4) + ", C5 = " + str(C5) + " natOpt = " + str(self.natOpt))
-    
+
     # param page - An 8 character info string for the start of the header
     def printHeader(self, packet, page = "Header..", seeking = False):
         if self.clearFlag:
@@ -304,19 +304,19 @@ class TTXline:
             print("[printHeader] " + str(line) + " Too many lines. Some bug somewhere!")
         self.text.config(state = NORMAL) # allow editing
         buf = bytearray(packet) # convert to bytearray so we can modify it
-        #print('TTL TRACE A')  
+        #print('TTL TRACE A')
         for i in range(34,42): # copy the clock
             self.currentHeader[i] = buf[i]
-            #print(str(type(self.currentHeader)))  
+            #print(str(type(self.currentHeader)))
             #print(str(type(buf)))
-          
+
         for i in range(10): # blank out the header bytes
             buf[i]=buf[i] & 0x7f
             if buf[i]<0x20:
                 buf[i]=0x20
         for i in range(2,10):
             buf[i]=ord(page[i-2])
-            
+
         if seeking:
             #self.pageLoaded = False
             self.currentHeader = buf # The whole header is updating
@@ -331,10 +331,9 @@ class TTXline:
                 # for tag in self.text.tag_names(): # This clears all tags BUT only when moving to a new page
                 #     self.text.tag_delete(tag)
                 self.decodeFlags(packet)
-                print("Is this where we run clear?") # yes it is. However, we ALSO want to run it 
-                self.clearX26()
+                print("Is this where we run clear?") # yes it is. However, we ALSO want to run it
             #if not self.pageLoaded:
-            #    self.pageLoaded = True  
+            #    self.pageLoaded = True
             buf = self.currentHeader # The header stays on the loaded page
 
         self.setLine(buf, 0)
@@ -356,10 +355,10 @@ class TTXline:
             self.text.tag_config("pagenumber", foreground = "white") # found
             self.textConceal.tag_add("pagenumberc", "1.0", "1.7")
             self.textConceal.tag_config("pagenumberc", foreground = "white") # found
-          
+
         self.rowOffset = 0
         self.text.config(state = DISABLED)
-  
+
     # Return True if the row includes double height
     def printRow(self, packet, row):
         self.text.config(state = NORMAL) # allow editing
@@ -376,27 +375,16 @@ class TTXline:
             for col in range(40):
                 p0 = str(row + 1) + '.' + str(col)
                 ch = self.textConceal.get(p0) # The revealed character
-                if ch!=' ': # It might be concealed 
+                if ch!=' ': # It might be concealed
                     if not self.revealMode:
                         ch = ' ' # or it could be hidden
                     p1 = str(row + 1) + '.' + str(col+1)
                     self.text.insert(p0, ch)
                     self.text.delete(p1)
         self.text.config(state = DISABLED)
-        
+
     # Clear stuff including all the page modifiers
     def clear(self):
         self.clearFlag = True
-        self.clearX26()
-        self.region = 0
-                    
-    # Clear any X26 mappings
-    def clearX26(self):
-        print("[clearX26] called")
-        self.X26CharMappings = []
-        
-    def addMapping(self, mappedChar):
-        #print("[addMapping] " + str(mappedChar[0]) + " " + str(mappedChar[1]))
-        self.X26CharMappings.append(mappedChar)
-        total = len(self.X26CharMappings)
-        #print("[addMapping] count = " + str(total))
+        # self.region = 0
+        metaData.clear()

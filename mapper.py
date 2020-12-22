@@ -557,7 +557,7 @@ def mapHE(c): # Hebrew region 10, option 5
 # @param ch - character to map
 # @param diacritical to add (if possible) 0..15 from row 0x40 of Latin G2
 def mapdiacritical(ch, row, col, diacritical):
-    #print("[mapdiacritical] diacriticals on this page = " + str(len(diacritical)))
+    # print("[mapdiacritical] diacriticals on this page = " + str(len(diacritical)))
     for i in range(0, len(diacritical)):
         d = diacritical[i]
         if row==d[0] and col==d[1] : # match character location

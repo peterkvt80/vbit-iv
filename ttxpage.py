@@ -95,7 +95,7 @@ class TTXpage:
     def toggleReveal(self):
         self.lines.toggleReveal()
         
-    # decode packet 27 fastext links
+    # decode packet 27 fastext links. @TODO MOVE TO PACKET
     def decodeLinks(self, packet):
         offset = 2
         dc = self.deham(packet[6 + offset]) # designation code
@@ -126,34 +126,9 @@ class TTXpage:
             
             # @todo Calculate the relative magazine
         
-    def decodeTriplet(self, b1, b2, b3): # ETS: Page 22, section 8.3
-        #b1 = self.reverse(b1)
-        #b2 = self.reverse(b2)
-        #b3 = self.reverse(b3)
-        # Don't care about errors. Just remove the hamming bits
-        c1 = (b1 & 0x04) >> 2 | (b1 & 0x70) >> 3 # .XXX.X..
-        c2 = (b2 & 0x7f) << 8-4 # 4..10
-        c3 = (b3 & 0x7f) << 16-5 # 11..17
-        
-        result = c1 | c2 | c3
-        # print ("c1 =" + hex(c1) + " c2 =" + hex(c2) + " c3 =" + hex(c3) + " " + hex(result))                
-        return result
-    
-    # decode triplet in X/26 etc.
-    # \param ix Triplet number 0 to 12
-    def getTriplet(self, ix, pkt):
-        i = (ix * 3) + 3
-        return self.decodeTriplet(pkt[i], pkt[i+1], pkt[i+2])
-
-    # @param pkt - An XX26/28.29 packet
-    # @return - Array of 13 numbers, the decoded triplets
-    def decodeTriplets(self, pkt):
-        arr = []
-        for i in range(13):
-            arr.append( self.getTriplet(i, pkt) )
-        return arr
   
     def reverse(self, x): # reverse the bit order in a byte
+        return
         x = ((x & 0xF0) >> 4) | ((x & 0x0F) << 4)
         x = ((x & 0xCC) >> 2) | ((x & 0x33) << 2)
         x = ((x & 0xAA) >> 1) | ((x & 0x55) << 1)
@@ -181,25 +156,9 @@ class TTXpage:
             print(str(i) + ":" + hex(pkt[i]) + ' ', end='')
         print()
     
-    def decodeRow28(self, pkt):
-        # All I really want is the regional set number. See table 4
-        dc = self.deham(pkt[2])
-        
-        tp =  self.decodeTriplets(pkt)
-        x = tp[0]
-        function = x & 0x0f # Page function. (0 = basic level 1 page)
-        encoding= (x >> 4) & 0x07 # Page encoding (0 = 7 bit odd parity)
-
-        print("X/28 " + hex(tp[0]) + ", "+ hex(tp[1]) + ", "+ hex(tp[2]) + ", "+ hex(tp[3]) + ", "+ hex(tp[4]) + ", "+ hex(tp[5]))
-        # We should validate this! It is only correct in X/28/0 format 1
-        # region number is bits 11 to 14. Regions are listed in Table 32
-        # @TODO This only decodes the region code that VBIT2 puts out.
-        # There is a a huge amount more in X/28.
-        self.region = (x >> 10) & 0x0f
-        print("Packet 28 DC(" + hex(dc) + ") " + hex(x) + " region = " + str(self.region))
-        self.lines.region = self.region # National option
     ### IN PROGRESS: Move packet handling to packet.py    
     def decodeRow26(self, pkt):
+        return # This is moved to packet
         # There is a lot of stuff in X26. Initially just look at diacriticals
         #self.dumpPacket(pkt)
         dc = self.deham(pkt[2])

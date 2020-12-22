@@ -27,7 +27,7 @@ import sys
 import time
 from ttxpage import TTXpage
 import zmq
-from packet import Packet
+from packet import Packet, metaData
 from clut import clut, Clut
 
 
@@ -63,8 +63,6 @@ print ("mag = "+str(currentMag))
 if int(sys.argv[2])>0:
     currentPage = int(sys.argv[2], 16)
 print ("page = "+str(currentPage))
-
-packet = Packet()
 
 def deham(value):
     # Deham with NO checking! @todo Parity and error correction
@@ -103,7 +101,7 @@ def remote(ch):
     global currentPage
     global lastPacket
     global seeking
-    global holdMode    
+    global holdMode
     if ch == '':
         return
     if ch == 'h': # hold
@@ -152,13 +150,15 @@ def remote(ch):
             seeking = True # @todo If we select the page we are already on
         page_number = 'P' + pageNum
         print("page number = " + page_number)
-        ttx.printHeader(lastPacket,  page_number+'    ', seeking)    
+        ttx.printHeader(lastPacket,  page_number+'    ', seeking)
+    if ch=='d':
+        metaData.dump()
     else:
-        print("Unhandled remote code: " + ch)        
+        print("Unhandled remote code: " + ch)
         # @todo Reveal, Fastext, Hold, Double height, Page up, Page Down, Mix
     #if seeking:
     #    ttx.clear()
-                      
+
 def process(pkt):
     global capturing
     global currentMag
@@ -170,24 +170,21 @@ def process(pkt):
     global subCode
     global lastSubcode
     global clut
-    
+
     result = mrag(pkt[0], pkt[1])
     mag = result[0]
     row = result[1]
     # If this is a header, decode the page
-  
+
     # If we hit a row that follows a header, skip the packet
     if elideRow>0 and elideRow == row:
         ttx.mainLoop()
         #print("eliding row= " + str(elideRow))
         elideRow=0
         return
-    #print("TRACE E")  
     # only display things that are on our magazine
     if currentMag == mag: # assume parallel mode
-        #print("TRACE F")  
         if row == 0:
-            #print("TRACE G1")  
             if holdMode:
                 ttx.printHeader(lastPacket, "HOLD    ", False)
                 return
@@ -196,37 +193,31 @@ def process(pkt):
             page = decodePage(pkt)
             subcode = decodeSubcode(pkt) # Used to clear down page if changed. Also clears X26 char map
             capturing = currentPage == page
-            #print("TRACE G2")  
             if capturing:
                 seeking = False # Capture starts if this is the right page
                 lastPacket = pkt
                 if subcode != lastSubcode:
                     lastSubcode = subcode
                     ttx.clear()
-                ttx.lines.clearX26()
+                #ttx.lines.clearX26()
                 clut.reset() # @todo Do we need to save colours in some cases?
                 print("sub-code = " + hex(subcode))
-                
-                
-            #print("TRACE G3")  
+
+
             #if not seeking: # new header starts rendering the page
             #    clearPage() # @todo Decode header flagsallow-hotplug can0
 
             # @todo Don't clear if the page is already loaded
-            #print("TRACE G4")  
             #printRow(pkt, 0, 0, "P{:1d}{:02X}    ".format(currentMag,currentPage))
-            #print("TRACE G5")  
             elideRow = 0
-            #print("TRACE G6")  
             # Show the whole header if we are capturing. Otherwise just show the clock
             ttx.printHeader(pkt,  "P{:1d}{:02X}    ".format(currentMag,currentPage), seeking)
-            #print("TRACE G7")  
             #if capturing:
             #printRow(packet, 0, 0, "{:1d}{:02X}".format(mag,page))
-            # print("\033[2J", end='') # clear screen  
+            # print("\033[2J", end='') # clear screen
                 #printRow(packet)
         else:
-            #print("TRACE GA")  
+            #print("TRACE GA")
 
         # @todo Need to copy all pages until a new header arrives
             if capturing:
@@ -235,43 +226,41 @@ def process(pkt):
                     if ttx.printRow(pkt, row): # double height?
                         elideRow = row+1
                 if row == 26:
-                    ttx.decodeRow26(pkt)                    
+                    # ttx.decodeRow26(pkt) # @todo TO BE REPLACED
+                    print("process packet26 called")
+                    metaData.decode(pkt, 26)
                 if row == 27: # fastext
-                    ttx.decodeLinks(pkt)
+                    ttx.decodeLinks(pkt) # @todo TO BE REPLACED
                 if row == 28: # region
-                    ttx.decodeRow28(pkt)
-                    packet.decode(pkt, 28)
-                if row == 29: # 
+                    # ttx.decodeRow28(pkt) # @todo TO BE REPLACED
+                    metaData.decode(pkt, 28)
+                if row == 29: #
                     print("Unsupported packet type = " + str(row))
-                if row == 30: # 
+                if row == 30: #
                     print("Unsupported packet type = " + str(row))
-                if row == 31: # 
+                if row == 31: #
                     print("Unsupported packet type = " + str(row))
                         # Page 32
 #ETS 300 706: May 1997
-    #print("TRACE GY")  
     ttx.mainLoop()
-    #print("TRACE GX")
-    
+
 # Local control
 
-  
+
 # Remote control talks on port 6558
 bind = "tcp://*:7777"
 print("vbit-vi binding to " + bind)
 context = zmq.Context()
 socket = context.socket(zmq.REP)
-socket.bind(bind)  
-#print("trace A")
+socket.bind(bind)
 try:
     # This thread reads the input stream into a field buffer
     while True:
         # load a field of 16 vbi lines
-        for line in range(16):  
+        for line in range(16):
             # packet=file.read(packetSize) # file based version
             # packet=sys.stdin.buffer.read(packetSize) # read binary from stdin
             process(sys.stdin.buffer.read(packetSize))
-            #print("trace B " + str(line))
         # see if the keyboard has received a remote control code
         key = ttx.getKey()
         if key != ' ':
@@ -279,9 +268,8 @@ try:
                 exit()
             remote(key)
         time.sleep(0.020) # 20ms between fields
-        #print("trace C")
 
-        
+
         try:
             #message = socket.recv()
             message = socket.recv(flags=zmq.NOBLOCK)
@@ -291,15 +279,15 @@ try:
             socket.send(b"sup?")
         except zmq.Again as e:
             time.sleep(0.001) # do nothing
-    
+
 except KeyboardInterrupt: # If CTRL+C is pressed, exit cleanly:
-    print("Keyboard interrupt")    
+    print("Keyboard interrupt")
 
 except Exception as inst:
-    print("some error") 
-    print(type(inst)) 
-    print(inst.args) 
-    print(inst) 
+    print("vbit-iv error")
+    print(type(inst))
+    print(inst.args)
+    print(inst)
 
 finally:
     print("clean up") 
