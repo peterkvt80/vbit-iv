@@ -34,7 +34,8 @@ class Packet:
     def __init__(self):
         self.region = 0
         print('C')
-        self.X26CharMappings = []        
+        self.X26CharMappings = [] # diacriticals
+        self.ChangeColour = [] # background colour replacement
         return
     
     # reset all meta-data to the defaults
@@ -42,9 +43,42 @@ class Packet:
         print('D')
         self.region = 0
         self.X26CharMappings = []        
+        self.ChangeColour = []
         clut.reset()
         self.clearX26()
-
+        
+    def mapColourFg(self, row, column, colour):
+        return self.mapColour(row, column, colour, True)
+        
+    def mapColourBg(self, row, column, colour):
+        return self.mapColour(row, column, colour, False)
+        
+    # If there is an X26/0 mapped colour, return it
+    # @row - Row index of a spacing attribute
+    # @column - Column index of a spacing attribute
+    # @IsFg - True if the colour we are looking for is a foreground colour
+    # @return The colour mapped at the address    
+    def mapColour(self, row, column, colour, isFg):
+        # print("[packet::mapColour] entered. row = " + str(row) + " col = " + str(column) + " clr= " + str(colour) )
+        # look through the ChangeColour list to find if we have a matched address
+        for i in self.ChangeColour: # [row, column, clutIx, colourIx, isFg]
+            r = i[0]
+            c = i[1]
+            if isFg:
+                c = c - 1 # set after
+            fg = i[4]
+            #print ("[mapColour] r = " + str(r))
+            #print ("[mapColour] c = " + str(c))
+            #print ("[mapColour] i[0]" + str(i[0]))
+            # If the address matches and the foreground or background type matches
+            if (row - 1) == r and column == c and fg == isFg:
+                print('[mapColour] ' + str(i))
+                print('[mapColour matched] row, col = ' + str(row) + ', ' + str(column) + ' fg = ' + str(isFg))
+                print ("[mapColour matched] clut[ix] " + str(i[2]) + '[' + str(i[3])+ ']')
+                colour = clut.get_value(i[2], i[3])
+                print('[mapColour matched] colour = ' + colour)
+                return colour # found and replaced
+        return colour # Not found, don't change
         
     
     # decode a packet. Returns the packet type or 0 if it is not X/26, X28, X29
@@ -144,19 +178,19 @@ class Packet:
     def decodeX260(self, pkt):
         print("[decodeX260] ENTERS")
         
-        # There is a lot of stuff in X26. Initially just look at diacriticals
+        # There is a lot of stuff in X26, diacriticals, colours, side panels ...
         tp =  self.decodeTriplets(pkt)
         dc = self.deham(pkt[2]) # 0  
 
         print("[decodeX260] dc = " + str(dc))
-        for i in range (0, 12):
+        for i in range (0, 13):
             x = tp[i] # self.getTriplet(i, pkt)
             data = (x >> 11) & 0x7f
             mode = (x >> 6) & 0x1f
             address = x & 0x3f
             if mode != 0x1f: # filter out termination marker
                 print("[decodeX260] Packet 26 triplet = " + str(i) + " data = " + hex(data) + " mode = " + hex(mode) + " address = " + str(address), end='')
-            if address>=40 and address<=63: # It is a row address group
+            if address>=40 and address<=63: # It is a row address group. TABLE 27.
                 modeStr = {
                     0x01: "Full row colour",
                     0x02: "Reserved",
@@ -234,11 +268,22 @@ class Packet:
                     # print("rowAddr = " + str(self.rowAddr))
             if address>=0 and address<=39: # It is a column address group
                 # @todo Modes between 0 and 0x1f
+                if mode == 0x00: #Foreground colour
+                    if (data & 0x60) == 0:
+                        clutIndex = (data >> 3) & 0x03 # Which CLUT?
+                        colourIndex = data & 0x07 # Which colour in the CLUT?
+                        print ("[decodeX260] set foreground colour at (" + str(self.rowAddr) + ", " + str(address) + ") to " + str(clutIndex) + "[" + str(colourIndex) +']')
+                        fgCol = [self.rowAddr, address, clutIndex, colourIndex, True]
+                        self.ChangeColour.append(fgCol)
                 if mode == 0x03: #Background colour
                     if (data & 0x60) == 0:
-                        clutVal = (data >> 3) & 0x03
-                        ix = data & 0x07
-                        print ("[decodeX260] set background colour at (" + str(self.rowAddr) + ", " + str(self.colAddr) + ") to " + str(clutVal) + "[" + str(ix) +']')
+                        clutIndex = (data >> 3) & 0x03 # Which CLUT?
+                        colourIndex = data & 0x07 # Which colour in the CLUT?
+                        print ("[decodeX260] set background colour at (" + str(self.rowAddr) + ", " + str(address) + ") to " + str(clutIndex) + "[" + str(colourIndex) +']')
+                        bgCol = [self.rowAddr, address, clutIndex, colourIndex, False]
+                        self.ChangeColour.append(bgCol)
+                        
+                        # @todo Stash this value for later rendering
                 if mode & 0x10 and mode != 0x1f: # G0 character with diacritical mark
                     self.colAddr = address
                     dia = int(mode & 0x0f)
@@ -296,14 +341,14 @@ class Packet:
 
     # dump a packet as hex
     def dumpPacket(self, pkt):
-        # print('dump: ' + f'{pkt[0]:02x}' + ' ' + f'{pkt[1]:02x}')
+        # print('Dump: ' + f'{pkt[0]:02x}' + ' ' + f'{pkt[1]:02x}')
         print([f'{pkt[i]:02x}' for i in range(0, 42)])
         
     # dump ALL the metadata in one handy chunk
     def dump(self):
         print("[Dump] Region = " + str(self.region))
         clut.dump()
-        print("diacritical count = " + str(len(self.X26CharMappings)))
+        print("[Dump] diacritical count = " + str(len(self.X26CharMappings)))
         
     # The clut is shared
     # Other metadata has access functions

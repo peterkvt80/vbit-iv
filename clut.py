@@ -125,8 +125,8 @@ class Clut:
     # @param clut_index CLUT index 0 to 3
     # @param clr_index - 0..7 colour index
     def set_value(self, colour, clut_index, clr_index):
-        if clr_index>7:
-            clr_index = clr_index % 8 # need to trap this a bit better. This is masking a problem
+        clr_index = clr_index % 8 # need to trap this a bit better. This is masking a problem
+        clut_index = clut_index % 4
         if clut_index==0:
             self.clut0[clr_index] = colour;
         if clut_index==1:
@@ -137,9 +137,24 @@ class Clut:
             self.clut3[clr_index] = colour;
         print("clut value: clut" + str(clut_index) + " set[" + str(clr_index) + '] = ' + colour)
         
+    # @return colour - 12 bit web colour string eg. '#1ab'
+    # @param clut_index CLUT index 0 to 3
+    # @param clr_index - 0..7 colour index
+    def get_value(self, clut_index, clr_index):
+        clut_index = clut_index % 4
+        clr_index = clr_index % 8
+        if clut_index == 0:
+            return self.clut0[clr_index]
+        if clut_index == 1:
+            return self.clut1[clr_index]
+        if clut_index == 2:
+            return self.clut2[clr_index]
+        if clut_index == 3:
+            return self.clut3[clr_index]
+        
     # debug dump the clut contents
     def dump(self):
-        print("[dump] CLUT values")
+        print("[Dump] CLUT values")
         for i in range(8):
             print(self.clut0[i] + ', ', end='')
         print()

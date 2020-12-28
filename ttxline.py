@@ -250,24 +250,41 @@ class TTXline:
                 background_colour = 'black'
                 attributeChanged = True
                 set_at = 0
+                #background_colour = metaData.mapColourBg(int(row), i, background_colour)
+                #foregroundground_colour = metaData.mapColourFg(int(row), i, foreground_colour) # x26/0
             if c==0x1d: # new background - set at
                 background_colour = foreground_colour
                 attributeChanged = True
                 set_at = 0
+                #background_colour = metaData.mapColourBg(int(row), i, background_colour)
+                #foregroundground_colour = metaData.mapColourFg(int(row), i, foreground_colour) # x26/0
             if c < 0x08 : # alpha colour - set after
                 foreground_colour = self.getcolour(c)
                 attributeChanged = True
+                # also need to see if there is an X26/0 background colour change
+                #foreground_colour = metaData.mapColourFg(int(row), i, foreground_colour)
+                #background_colour = metaData.mapColourBg(int(row), i, background_colour)
             if c >= 0x10 and c < 0x18: # Mosaic colour - set after
                 foreground_colour = self.getcolour(c-0x10)
                 attributeChanged = True
-
+                #foreground_colour = metaData.mapColourFg(int(row), i, foreground_colour)
+                #background_colour = metaData.mapColourBg(int(row), i, background_colour)
+                # also need to see if there is an X26/0 foreground colour change
+            fg = metaData.mapColourFg(int(row), i, foreground_colour)
+            if fg != foreground_colour:
+                attributeChanged = True
+                foreground_colour = fg
+            bg = metaData.mapColourBg(int(row), i, background_colour)
+            if bg != background_colour:
+                attributeChanged = True
+                background_colour = bg
             if attributeChanged:
                 # tag_id identifies the row
                 tag_id = row + '-' + str(ix) + '-' + text_height + '-' + foreground_colour + '-' + background_colour
                 ix = ix + 1
 #                tag_id = row + '-' + str(ix++) + '-' + text_height + '-' + foreground_colour + '-' + background_colour
                 #tag_id = 'double' + '-' + 'cyan' + '-' + 'black'
-                #print("Setting attributes at " +rstr + str(i+set_at) + " to " + rstr + 'end *' + tag_id + '*')
+                print("Setting attributes at " +rstr + str(i+set_at) + " to " + rstr + 'end *' + tag_id + '*')
                 self.text.tag_add(tag_id, rstr + str(i+set_at), rstr + 'end') #
                 self.textConceal.tag_add(tag_id, rstr + str(i+set_at), rstr + 'end') #
 
