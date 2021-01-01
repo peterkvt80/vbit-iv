@@ -25,6 +25,7 @@
 # where to look
 
 from clut import clut, Clut
+from mapper import getdiacritical, MapLatinG2
 
 # This doesn't want to be packets centred, it is pages meta data.
 # In other words:
@@ -64,8 +65,6 @@ class Packet:
         for i in self.ChangeColour: # [row, column, clutIx, colourIx, isFg]
             r = i[0]
             c = i[1]
-            if isFg:
-                c = c - 1 # set after
             fg = i[4]
             #print ("[mapColour] r = " + str(r))
             #print ("[mapColour] c = " + str(c))
@@ -189,7 +188,7 @@ class Packet:
             mode = (x >> 6) & 0x1f
             address = x & 0x3f
             if mode != 0x1f: # filter out termination marker
-                print("[decodeX260] Packet 26 triplet = " + str(i) + " data = " + hex(data) + " mode = " + hex(mode) + " address = " + str(address), end='')
+                print("[decodeX260] Packet 26 triplet = " + str(i) + " data = " + hex(data) + " address = " + str(address), end='')
             if address>=40 and address<=63: # It is a row address group. TABLE 27.
                 modeStr = {
                     0x01: "Full row colour",
@@ -253,7 +252,7 @@ class Packet:
                     }
             if mode == 0x1f: # A termination marker, nothing more to come
                 return 
-            print (" mode = " + modeStr.get(mode, hex(mode)))
+            print (" tuple("+str(i)+") mode(" + hex(mode) + ") = " + modeStr.get(mode, hex(mode)))
             if address>=40 and address<=63: # It is a row address group
                 # @todo Modes between 0 and 0x1f
 #When data field D6 and D5 are both set to '0', bits D4 - D0 define the background
@@ -263,7 +262,7 @@ class Packet:
 #by either a spacing or a non-spacing attribute defining the background colour.
                 if mode == 0x04: # Set Active Position
                     self.rowAddr = address - 40
-                    if data<40:
+                    if data<40: # level >= 2.5
                         self.colAddr = data
                     # print("rowAddr = " + str(self.rowAddr))
             if address>=0 and address<=39: # It is a column address group
@@ -275,22 +274,42 @@ class Packet:
                         print ("[decodeX260] set foreground colour at (" + str(self.rowAddr) + ", " + str(address) + ") to " + str(clutIndex) + "[" + str(colourIndex) +']')
                         fgCol = [self.rowAddr, address, clutIndex, colourIndex, True]
                         self.ChangeColour.append(fgCol)
-                if mode == 0x03: #Background colour
+                if mode == 0x01: # Block Mosaic Character from the G1 Set. Page 90
+                    # @todo Probably needs to take into account contiguous/separated
+                    ch = data & 0x7f
+                    if ch >= 0x20 and ch < 0x40:
+                        ch = ch + 0xe680 - 0x20
+                    if ch >= 0x60 and ch < 0x80:
+                        ch = ch + 0xe6a0 - 0x60
+                    mapChar = tuple((self.rowAddr, address, ch))                    
+                    self.addMapping(mapChar)
+                if mode == 0x03: # Background colour
                     if (data & 0x60) == 0:
                         clutIndex = (data >> 3) & 0x03 # Which CLUT?
                         colourIndex = data & 0x07 # Which colour in the CLUT?
                         print ("[decodeX260] set background colour at (" + str(self.rowAddr) + ", " + str(address) + ") to " + str(clutIndex) + "[" + str(colourIndex) +']')
                         bgCol = [self.rowAddr, address, clutIndex, colourIndex, False]
                         self.ChangeColour.append(bgCol)
-                        
-                        # @todo Stash this value for later rendering
-                if mode & 0x10 and mode != 0x1f: # G0 character with diacritical mark
+                if mode == 0x09: # Character from G0 set (2.5, 3.5)
+                    #print('[decodeX260: mode 9] place character ' + hex(data) + " at (" + str(address) +", " + str(self.rowAddr) + ")")
+                    mapChar = tuple((self.rowAddr, address, data))
+                    self.addMapping(mapChar)
+                if mode == 0x0f: # Character from the G2 Supplementary Set. Page 94
+                    g2char = MapLatinG2(data)
+                    mapChar = tuple((self.rowAddr, address, g2char))
+                    self.addMapping(mapChar)                   
+                if mode == 0x10: # Character from G0 set (2.5, 3.5)
+                    print('[decodeX260: mode 10] place character ' + hex(data) + " at (" + str(address) +", " + str(self.rowAddr) + ")")
+                    mapChar = tuple((self.rowAddr, address, ord('?')))
+                    self.addMapping(mapChar)
+                if mode > 0x10 and mode <= 0x1f: # G0 character with diacritical mark
                     self.colAddr = address
                     dia = int(mode & 0x0f)
-                    mapChar = tuple((self.rowAddr, self.colAddr, dia))
+                    # mapChar = tuple((self.rowAddr, self.colAddr, dia))
+                    mapChar = tuple((self.rowAddr, self.colAddr, ord(getdiacritical(chr(data), dia)) ))
                     # need to re-implement this
                     self.addMapping(mapChar)
-                    # print("mapChar = " + str(mapChar[0]) + " " + str(mapChar[1]) + " " + str(mapChar[2]) + " ")
+                    print("[mapChar] = " + str(mapChar[0]) + " " + str(mapChar[1]) + " " + str(mapChar[2]) + " ")
 
         
     # Really need to make a better version of deham
@@ -359,14 +378,12 @@ class Packet:
     
     ############## X/26 character mappings ###############
     def addMapping(self, mappedChar):
-        print('TRACE A')
+        #print('TRACE A')
         self.X26CharMappings.append(mappedChar)
         
     # Clear any X26 mappings
     def clearX26(self):
-        print('TRACE B')
-        self.X26CharMappings = []
-        
-
+        #print('TRACE B')
+        self.X26CharMappings = []        
     
 metaData = Packet()

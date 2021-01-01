@@ -556,361 +556,402 @@ def mapHE(c): # Hebrew region 10, option 5
 
 # @param ch - character to map
 # @param diacritical to add (if possible) 0..15 from row 0x40 of Latin G2
+# NOTE. This is now split. Characters are looked up during reading the page by getdiacritical
+# mapdiacritical is now only used to render the character
 def mapdiacritical(ch, row, col, diacritical):
     # print("[mapdiacritical] diacriticals on this page = " + str(len(diacritical)))
     for i in range(0, len(diacritical)):
         d = diacritical[i]
         if row==d[0] and col==d[1] : # match character location
+            return chr(d[2]) # This is the correct character
+            # STUFF AFTER HERE WE DON'T DO ANY MORE
             # print("[mapdiacritical] row = " + str(row) + " col = " + str(col) + ", ch = " + ch + " dia = " + str(d[2]))
             #ch='`'
             # now see if we can add diacritical d[2] to character ch
             accent = d[2]
-            if accent == 0: # grave
-                if ch=='A':
-                    return chr(0xc0)
-                if ch=='E':
-                    return chr(0xc8)
-                if ch=='I':
-                    return chr(0xcc)
-                if ch=='O':
-                    return chr(0xd2)
-                if ch=='U':
-                    return chr(0xd9)
-                if ch=='a':
-                    return chr(0xe0)
-                if ch=='e':
-                    return chr(0xe8)
-                if ch=='i':
-                    return chr(0xec)
-                if ch=='o':
-                    return chr(0xf2)
-                if ch=='u':
-                    return chr(0xf9)
-                # Cyrillics go here
-            if accent == 2: # acute
-                if ch=='A':
-                    return chr(0xc1)
-                if ch=='E':
-                    return chr(0xc9)
-                if ch=='I':
-                    return chr(0xcd)
-                if ch=='O':
-                    return chr(0xd3)
-                if ch=='U':
-                    return chr(0xda)
-                if ch=='Y':
-                    return chr(0xdd)
-                if ch=='a':
-                    return chr(0xe1)
-                if ch=='e':
-                    return chr(0xe9)
-                if ch=='i':
-                    return chr(0xed)
-                if ch=='o':
-                    return chr(0xf3)
-                if ch=='u':
-                    return chr(0xfa)
-                if ch=='y':
-                    return chr(0xfd)
-                if ch=='C':
-                    return chr(0x106)
-                if ch=='c':
-                    return chr(0x107)
-                if ch=='c':
-                    return chr(0x139)
-                if ch=='l':
-                    return chr(0x13a)
-                if ch=='N':
-                    return chr(0x143)
-                if ch=='n':
-                    return chr(0x144)
-                if ch=='R':
-                    return chr(0x154)
-                if ch=='r':
-                    return chr(0x155)
-                if ch=='S':
-                    return chr(0x15a)
-                if ch=='s':
-                    return chr(0x15b)
-            if accent == 3: # circumflex
-                if ch=='A':
-                    return chr(0xc2)
-                if ch=='E':
-                    return chr(0xca)
-                if ch=='I':
-                    return chr(0xce)
-                if ch=='O':
-                    return chr(0xd4)
-                if ch=='U':
-                    return chr(0xd8)
-                if ch=='a':
-                    return chr(0xe2)
-                if ch=='e':
-                    return chr(0xea)
-                if ch=='i':
-                    return chr(0xee)
-                if ch=='o':
-                    return chr(0xf4)
-                if ch=='u':
-                    return chr(0xfb)
-                if ch=='C':
-                    return chr(0x108)
-                if ch=='c':
-                    return chr(0x109)
-                if ch=='G':
-                    return chr(0x11c)
-                if ch=='g':
-                    return chr(0x11d)
-                if ch=='H':
-                    return chr(0x124)
-                if ch=='h':
-                    return chr(0x125)
-                if ch=='J':
-                    return chr(0x134)
-                if ch=='j':
-                    return chr(0x135)
-                if ch=='S':
-                    return chr(0x15c)
-                if ch=='s':
-                    return chr(0x15d)
-                if ch=='W':
-                    return chr(0x174)
-                if ch=='w':
-                    return chr(0x175)
-                if ch=='Y':
-                    return chr(0x176)
-                if ch=='y':
-                    return chr(0x177)
-                
-            if accent == 4: # tilde ~
-                if ch=='A':
-                    return chr(0xc3)
-                if ch=='N':
-                    return chr(0xd1)
-                if ch=='O':
-                    return chr(0xd5)
-                if ch=='a':
-                    return chr(0xe3)
-                if ch=='n':
-                    return chr(0xf1)
-                if ch=='o':
-                    return chr(0xf5)
-                if ch=='I':
-                    return chr(0x128)
-                if ch=='i':
-                    return chr(0x129)
-                if ch=='U':
-                    return chr(0x168)
-                if ch=='u':
-                    return chr(0x169)
-
-            if accent == 5: # macron (over line)
-                if ch=='A':
-                    return chr(0x100)
-                if ch=='a':
-                    return chr(0x101)
-                if ch=='E':
-                    return chr(0x112)
-                if ch=='e':
-                    return chr(0x113)
-                if ch=='I':
-                    return chr(0x12a)
-                if ch=='i':
-                    return chr(0x12b)
-                if ch=='O':
-                    return chr(0x14c)
-                if ch=='o':
-                    return chr(0x14d)
-                if ch=='U':
-                    return chr(0x16a)
-                if ch=='u':
-                    return chr(0x16b)
-
-            if accent == 6: # breve
-                if ch=='A':
-                    return chr(0x102)
-                if ch=='a':
-                    return chr(0x103)
-                if ch=='E':
-                    return chr(0x114)
-                if ch=='e':
-                    return chr(0x115)
-                if ch=='G':
-                    return chr(0x11e)
-                if ch=='g':
-                    return chr(0x11f)
-                if ch=='I':
-                    return chr(0x12c)
-                if ch=='i':
-                    return chr(0x12d)
-                if ch=='O':
-                    return chr(0x14e)
-                if ch=='o':
-                    return chr(0x14f)
-
-            if accent == 7: # dot above
-                if ch=='C':
-                    return chr(0x10A)
-                if ch=='c':
-                    return chr(0x10B)
-                if ch=='E':
-                    return chr(0x116)
-                if ch=='e':
-                    return chr(0x117)
-                if ch=='G':
-                    return chr(0x120)
-                if ch=='g':
-                    return chr(0x121)
-                if ch=='I':
-                    return chr(0x130)
-                if ch=='Z':
-                    return chr(0x17B)
-                if ch=='z':
-                    return chr(0x17C)
-
-            if accent == 8: # diaresis above
-                if ch=='A':
-                    return chr(0xc4)
-                if ch=='E':
-                    return chr(0xcb)
-                if ch=='I':
-                    return chr(0xcf)
-                if ch=='O':
-                    return chr(0xd6)
-                if ch=='U':
-                    return chr(0xdc)
-                if ch=='a':
-                    return chr(0xe4)
-                if ch=='e':
-                    return chr(0xeb)
-                if ch=='i':
-                    return chr(0xef)
-                if ch=='o':
-                    return chr(0xf6)
-                if ch=='u':
-                    return chr(0xfc)
-                if ch=='y':
-                    return chr(0xff)
-
-            #if accent == 9: # low acute
-                
-            if accent == 10: # Ring above (0x4a)
-                if ch=='A':
-                    return chr(0xc5)
-                if ch=='a':
-                    return chr(0xe5)
-                if ch=='U':
-                    return chr(0x16e)
-                if ch=='u':
-                    return chr(0x16f)
-                
-            if accent == 11: # Cedilla (0x4b)
-                if ch=='C':
-                    return chr(0xc7)
-                if ch=='c':
-                    return chr(0xe7)
-                if ch=='G':
-                    return chr(0x122)
-                if ch=='g':
-                    return chr(0x123)
-                if ch=='K':
-                    return chr(0x136)
-                if ch=='k':
-                    return chr(0x137)
-                if ch=='L':
-                    return chr(0x13b)
-                if ch=='l':
-                    return chr(0x13c)
-                if ch=='N':
-                    return chr(0x145)
-                if ch=='n':
-                    return chr(0x146)
-                if ch=='R':
-                    return chr(0x156)
-                if ch=='r':
-                    return chr(0x157)
-                if ch=='S':
-                    return chr(0x15e)
-                if ch=='s':
-                    return chr(0x15f)
-                if ch=='T':
-                    return chr(0x162)
-                if ch=='t':
-                    return chr(0x163)
-                if ch=='e':
-                    return chr(0x229)
-                
-            # if accent == 12: # low macron
-
-            if accent == 13: # double acute 0x4d
-                if ch=='O':
-                    return chr(0x150)
-                if ch=='o':
-                    return chr(0x104)
-                if ch=='U':
-                    return chr(0x170)
-                if ch=='u':
-                    return chr(0x171)
-
-            if accent == 14: # ogonek 0x4e
-                if ch=='A':
-                    return chr(0x104)
-                if ch=='a':
-                    return chr(0x105)
-                if ch=='E':
-                    return chr(0x118)
-                if ch=='e':
-                    return chr(0x119)
-                if ch=='I':
-                    return chr(0x12e)
-                if ch=='i':
-                    return chr(0x12f)
-                if ch=='U':
-                    return chr(0x172)
-                if ch=='u':
-                    return chr(0x173)
-                
-            if accent == 15: # caron 0x4f
-                if ch=='C':
-                    return chr(0x10c)
-                if ch=='c':
-                    return chr(0x10d)
-                if ch=='D':
-                    return chr(0x10e)
-                if ch=='d':
-                    return chr(0x10f)
-                if ch=='E':
-                    return chr(0x11a)
-                if ch=='e':
-                    return chr(0x11b)
-                if ch=='L':
-                    return chr(0x13d)
-                if ch=='l':
-                    return chr(0x13e)
-                if ch=='N':
-                    return chr(0x147)
-                if ch=='n':
-                    return chr(0x148)
-                if ch=='R':
-                    return chr(0x158)
-                if ch=='r':
-                    return chr(0x159)
-                if ch=='S':
-                    return chr(0x160)
-                if ch=='s':
-                    return chr(0x161)
-                if ch=='T':
-                    return chr(0x164)
-                if ch=='t':
-                    return chr(0x165)
-                if ch=='Z':
-                    return chr(0x17d)
-                if ch=='z':
-                    return chr(0x17e)
-                if ch=='A':
-                    return chr(0x1cd)
-                if ch=='a':
-                    return chr(0x1ce)
-                
-                
+            ch = getdiacritical(ch, accent)
     return ch
+
+# Page 95: Characters Including Diacritical Marks
+# @param ch - Character to add a diacritical to
+# @param accent - accent to add to the character (from X26/0)
+# @return The accented character from the teletext font
+def getdiacritical(ch, accent):
+    # print("[getdiacritical] get diacriticals
+    if accent == 0: # grave
+        if ch=='A':
+            return chr(0xc0)
+        if ch=='E':
+            return chr(0xc8)
+        if ch=='I':
+            return chr(0xcc)
+        if ch=='O':
+            return chr(0xd2)
+        if ch=='U':
+            return chr(0xd9)
+        if ch=='a':
+            return chr(0xe0)
+        if ch=='e':
+            return chr(0xe8)
+        if ch=='i':
+            return chr(0xec)
+        if ch=='o':
+            return chr(0xf2)
+        if ch=='u':
+            return chr(0xf9)
+        # Cyrillics go here
+    if accent == 2: # acute
+        if ch=='A':
+            return chr(0xc1)
+        if ch=='E':
+            return chr(0xc9)
+        if ch=='I':
+            return chr(0xcd)
+        if ch=='O':
+            return chr(0xd3)
+        if ch=='U':
+            return chr(0xda)
+        if ch=='Y':
+            return chr(0xdd)
+        if ch=='a':
+            return chr(0xe1)
+        if ch=='e':
+            return chr(0xe9)
+        if ch=='i':
+            return chr(0xed)
+        if ch=='o':
+            return chr(0xf3)
+        if ch=='u':
+            return chr(0xfa)
+        if ch=='y':
+            return chr(0xfd)
+        if ch=='C':
+            return chr(0x106)
+        if ch=='c':
+            return chr(0x107)
+        if ch=='c':
+            return chr(0x139)
+        if ch=='l':
+            return chr(0x13a)
+        if ch=='N':
+            return chr(0x143)
+        if ch=='n':
+            return chr(0x144)
+        if ch=='R':
+            return chr(0x154)
+        if ch=='r':
+            return chr(0x155)
+        if ch=='S':
+            return chr(0x15a)
+        if ch=='s':
+            return chr(0x15b)
+    if accent == 3: # circumflex
+        if ch=='A':
+            return chr(0xc2)
+        if ch=='E':
+            return chr(0xca)
+        if ch=='I':
+            return chr(0xce)
+        if ch=='O':
+            return chr(0xd4)
+        if ch=='U':
+            return chr(0xd8)
+        if ch=='a':
+            return chr(0xe2)
+        if ch=='e':
+            return chr(0xea)
+        if ch=='i':
+            return chr(0xee)
+        if ch=='o':
+            return chr(0xf4)
+        if ch=='u':
+            return chr(0xfb)
+        if ch=='C':
+            return chr(0x108)
+        if ch=='c':
+            return chr(0x109)
+        if ch=='G':
+            return chr(0x11c)
+        if ch=='g':
+            return chr(0x11d)
+        if ch=='H':
+            return chr(0x124)
+        if ch=='h':
+            return chr(0x125)
+        if ch=='J':
+            return chr(0x134)
+        if ch=='j':
+            return chr(0x135)
+        if ch=='S':
+            return chr(0x15c)
+        if ch=='s':
+            return chr(0x15d)
+        if ch=='W':
+            return chr(0x174)
+        if ch=='w':
+            return chr(0x175)
+        if ch=='Y':
+            return chr(0x176)
+        if ch=='y':
+            return chr(0x177)
+        
+    if accent == 4: # tilde ~
+        if ch=='A':
+            return chr(0xc3)
+        if ch=='N':
+            return chr(0xd1)
+        if ch=='O':
+            return chr(0xd5)
+        if ch=='a':
+            return chr(0xe3)
+        if ch=='n':
+            return chr(0xf1)
+        if ch=='o':
+            return chr(0xf5)
+        if ch=='I':
+            return chr(0x128)
+        if ch=='i':
+            return chr(0x129)
+        if ch=='U':
+            return chr(0x168)
+        if ch=='u':
+            return chr(0x169)
+
+    if accent == 5: # macron (over line)
+        if ch=='A':
+            return chr(0x100)
+        if ch=='a':
+            return chr(0x101)
+        if ch=='E':
+            return chr(0x112)
+        if ch=='e':
+            return chr(0x113)
+        if ch=='I':
+            return chr(0x12a)
+        if ch=='i':
+            return chr(0x12b)
+        if ch=='O':
+            return chr(0x14c)
+        if ch=='o':
+            return chr(0x14d)
+        if ch=='U':
+            return chr(0x16a)
+        if ch=='u':
+            return chr(0x16b)
+
+    if accent == 6: # breve
+        if ch=='A':
+            return chr(0x102)
+        if ch=='a':
+            return chr(0x103)
+        if ch=='E':
+            return chr(0x114)
+        if ch=='e':
+            return chr(0x115)
+        if ch=='G':
+            return chr(0x11e)
+        if ch=='g':
+            return chr(0x11f)
+        if ch=='I':
+            return chr(0x12c)
+        if ch=='i':
+            return chr(0x12d)
+        if ch=='O':
+            return chr(0x14e)
+        if ch=='o':
+            return chr(0x14f)
+
+    if accent == 7: # dot above
+        if ch=='C':
+            return chr(0x10A)
+        if ch=='c':
+            return chr(0x10B)
+        if ch=='E':
+            return chr(0x116)
+        if ch=='e':
+            return chr(0x117)
+        if ch=='G':
+            return chr(0x120)
+        if ch=='g':
+            return chr(0x121)
+        if ch=='I':
+            return chr(0x130)
+        if ch=='Z':
+            return chr(0x17B)
+        if ch=='z':
+            return chr(0x17C)
+
+    if accent == 8: # diaresis above
+        if ch=='A':
+            return chr(0xc4)
+        if ch=='E':
+            return chr(0xcb)
+        if ch=='I':
+            return chr(0xcf)
+        if ch=='O':
+            return chr(0xd6)
+        if ch=='U':
+            return chr(0xdc)
+        if ch=='a':
+            return chr(0xe4)
+        if ch=='e':
+            return chr(0xeb)
+        if ch=='i':
+            return chr(0xef)
+        if ch=='o':
+            return chr(0xf6)
+        if ch=='u':
+            return chr(0xfc)
+        if ch=='y':
+            return chr(0xff)
+
+    #if accent == 9: # low acute
+        
+    if accent == 10: # Ring above (0x4a)
+        if ch=='A':
+            return chr(0xc5)
+        if ch=='a':
+            return chr(0xe5)
+        if ch=='U':
+            return chr(0x16e)
+        if ch=='u':
+            return chr(0x16f)
+        
+    if accent == 11: # Cedilla (0x4b)
+        if ch=='C':
+            return chr(0xc7)
+        if ch=='c':
+            return chr(0xe7)
+        if ch=='G':
+            return chr(0x122)
+        if ch=='g':
+            return chr(0x123)
+        if ch=='K':
+            return chr(0x136)
+        if ch=='k':
+            return chr(0x137)
+        if ch=='L':
+            return chr(0x13b)
+        if ch=='l':
+            return chr(0x13c)
+        if ch=='N':
+            return chr(0x145)
+        if ch=='n':
+            return chr(0x146)
+        if ch=='R':
+            return chr(0x156)
+        if ch=='r':
+            return chr(0x157)
+        if ch=='S':
+            return chr(0x15e)
+        if ch=='s':
+            return chr(0x15f)
+        if ch=='T':
+            return chr(0x162)
+        if ch=='t':
+            return chr(0x163)
+        if ch=='e':
+            return chr(0x229)
+        
+    # if accent == 12: # low macron
+
+    if accent == 13: # double acute 0x4d
+        if ch=='O':
+            return chr(0x150)
+        if ch=='o':
+            return chr(0x104)
+        if ch=='U':
+            return chr(0x170)
+        if ch=='u':
+            return chr(0x171)
+
+    if accent == 14: # ogonek 0x4e
+        if ch=='A':
+            return chr(0x104)
+        if ch=='a':
+            return chr(0x105)
+        if ch=='E':
+            return chr(0x118)
+        if ch=='e':
+            return chr(0x119)
+        if ch=='I':
+            return chr(0x12e)
+        if ch=='i':
+            return chr(0x12f)
+        if ch=='U':
+            return chr(0x172)
+        if ch=='u':
+            return chr(0x173)
+        
+    if accent == 15: # caron 0x4f
+        if ch=='C':
+            return chr(0x10c)
+        if ch=='c':
+            return chr(0x10d)
+        if ch=='D':
+            return chr(0x10e)
+        if ch=='d':
+            return chr(0x10f)
+        if ch=='E':
+            return chr(0x11a)
+        if ch=='e':
+            return chr(0x11b)
+        if ch=='L':
+            return chr(0x13d)
+        if ch=='l':
+            return chr(0x13e)
+        if ch=='N':
+            return chr(0x147)
+        if ch=='n':
+            return chr(0x148)
+        if ch=='R':
+            return chr(0x158)
+        if ch=='r':
+            return chr(0x159)
+        if ch=='S':
+            return chr(0x160)
+        if ch=='s':
+            return chr(0x161)
+        if ch=='T':
+            return chr(0x164)
+        if ch=='t':
+            return chr(0x165)
+        if ch=='Z':
+            return chr(0x17d)
+        if ch=='z':
+            return chr(0x17e)
+        if ch=='A':
+            return chr(0x1cd)
+        if ch=='a':
+            return chr(0x1ce)
+    return ch # Not possible to accent, it was an X26 substituted character                    
+
+# @param ch - character to convert to G2 (ordinal value)
+# @return G2 mapping of the character number
+def MapLatinG2(ch):
+    if ch <=0x20:
+        return 0x20
+    if ch==0x21: # inverted exclamation mark
+        return 0xa1
+    if ch==0x22: # cent
+        return 0xa2
+    if ch==0x23: # pound
+        return 0xa3
+    if ch==0x24: # dollar
+        return 0x24
+    if ch==0x25: # yen
+        return 0xa5
+    if ch==0x26: # hash
+        return 0x23
+    if ch==0x27: # section
+        return 0xa7
+    if ch==0x28: # currency
+        return 0xa4
+    if ch==0x29: # left single quote
+        return 0x2018
+    # ... @todo    
+    if ch==0x55: # quaver
+        return 0x266a
+    # up to 0x7f
+    print ("[MapLatinG2] @TODO. UNHANDLED MAPPING: " + str(ch))
+    return ord('?') #

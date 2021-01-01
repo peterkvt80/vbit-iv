@@ -270,11 +270,11 @@ class TTXline:
                 #foreground_colour = metaData.mapColourFg(int(row), i, foreground_colour)
                 #background_colour = metaData.mapColourBg(int(row), i, background_colour)
                 # also need to see if there is an X26/0 foreground colour change
-            fg = metaData.mapColourFg(int(row), i, foreground_colour)
+            fg = metaData.mapColourFg(int(row), i+1, foreground_colour) # Set after
             if fg != foreground_colour:
                 attributeChanged = True
                 foreground_colour = fg
-            bg = metaData.mapColourBg(int(row), i, background_colour)
+            bg = metaData.mapColourBg(int(row), i+1, background_colour) # Set at
             if bg != background_colour:
                 attributeChanged = True
                 background_colour = bg
@@ -284,7 +284,7 @@ class TTXline:
                 ix = ix + 1
 #                tag_id = row + '-' + str(ix++) + '-' + text_height + '-' + foreground_colour + '-' + background_colour
                 #tag_id = 'double' + '-' + 'cyan' + '-' + 'black'
-                print("Setting attributes at " +rstr + str(i+set_at) + " to " + rstr + 'end *' + tag_id + '*')
+                #print("Setting attributes at " +rstr + str(i+set_at) + " to " + rstr + 'end *' + tag_id + '*')
                 self.text.tag_add(tag_id, rstr + str(i+set_at), rstr + 'end') #
                 self.textConceal.tag_add(tag_id, rstr + str(i+set_at), rstr + 'end') #
 
@@ -299,6 +299,7 @@ class TTXline:
         return hasDoubleHeight
 
     def decodeFlags(self, packet):
+        return
         flags = [0,0,0,0,0,0,0,0,0]
         for i in range(8):
             flags[i] = self.deham(packet[i+2])
@@ -321,7 +322,6 @@ class TTXline:
             print("[printHeader] " + str(line) + " Too many lines. Some bug somewhere!")
         self.text.config(state = NORMAL) # allow editing
         buf = bytearray(packet) # convert to bytearray so we can modify it
-        #print('TTL TRACE A')
         for i in range(34,42): # copy the clock
             self.currentHeader[i] = buf[i]
             #print(str(type(self.currentHeader)))
@@ -348,7 +348,9 @@ class TTXline:
                 # for tag in self.text.tag_names(): # This clears all tags BUT only when moving to a new page
                 #     self.text.tag_delete(tag)
                 self.decodeFlags(packet)
-                print("Is this where we run clear?") # yes it is. However, we ALSO want to run it
+                print("[printHeader]Is this where we run clear?") # yes it is. However, we ALSO want to run it
+                self.clear()
+                
             #if not self.pageLoaded:
             #    self.pageLoaded = True
             buf = self.currentHeader # The header stays on the loaded page
