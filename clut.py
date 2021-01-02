@@ -151,6 +151,7 @@ class Clut:
             return self.clut2[clr_index]
         if clut_index == 3:
             return self.clut3[clr_index]
+        return 0 # just in case!
         
     # debug dump the clut contents
     def dump(self):

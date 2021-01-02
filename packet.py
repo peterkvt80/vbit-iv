@@ -54,7 +54,18 @@ class Packet:
         
     def mapColourBg(self, row, column, colour):
         return self.mapColour(row, column, colour, False)
-        
+    
+    # @param row - Row number to check
+    # @return - The colour value for that row, or black if there is none
+    def rowColour(self, row):
+        for i in self.RowColour:
+            r = i[0] # row
+            if r == row: # our row?
+                c = i[1] # clut
+                h = i[2] # index
+                return clut.get_value(c, h)
+        return '#000' # default row to black
+    
     # If there is an X26/0 mapped colour, return it
     # @row - Row index of a spacing attribute
     # @column - Column index of a spacing attribute
@@ -255,8 +266,16 @@ class Packet:
                 return 
             print (" tuple("+str(i)+") mode(" + hex(mode) + ") = " + modeStr.get(mode, hex(mode)))
             if address>=40 and address<=63: # It is a row address group
+                self.rowAddr = address - 40
                 if mode == 0x01: # Full Row Colour. Page 83                    
-                    print ('[decodeX260] todo Full row color mode 0x01')
+                    print ('[decodeX260] todo Full row colour mode 0x01')
+                    # push a tuple(row, clut, colour)
+                    s = (data >> 5) & 0x03 # 0..3
+                    if s != 0:
+                        print('[decodeX260] WARNING s is not equal to 0. @todo') # s == 3 means all rows that follow use this colour
+                    clutIndex = (data >> 3) & 0x03 # 0..3
+                    colourIndex= data & 0x07 # 0..7
+                    self.RowColour.append(tuple((self.rowAddr, clutIndex, colourIndex )))
                     # we can extract S: 0=row 3=area, C = Clut index, data = colour
                     # We will need to save this away and execute it 
                 # @todo Modes between 0 and 0x1f
@@ -266,7 +285,6 @@ class Packet:
 #The effect of this attribute persists to the end of a display row unless overridden
 #by either a spacing or a non-spacing attribute defining the background colour.
                 if mode == 0x04: # Set Active Position
-                    self.rowAddr = address - 40
                     if data<40: # level >= 2.5
                         self.colAddr = data
                     # print("rowAddr = " + str(self.rowAddr))

@@ -218,11 +218,23 @@ class TTXline:
                 graphicsMode = True
 
         # PASS 2: Add text attributes: font, colour, flash
+        
+        # Any full row colours?
+        
         foreground_colour = 'white'
         background_colour = 'black'
         text_height = 'single'
         # Set the initial colour for the row
+        background_colour = metaData.rowColour(row) # X26/0 full row colour triplet
+        print('[setLine] row = ' + str(row) + " bgcol = " + background_colour)
+        
+        tag_id = "rowBGCol"+str(row)
+        self.text.tag_config(tag_id , font = self.ttxfont2, foreground = foreground_colour, background = background_colour)
+        self.textConceal.tag_config(tag_id , font = self.ttxfont2, foreground = foreground_colour, background = background_colour)
+        self.text.tag_add(tag_id, rstr + str(0), rstr + 'end') #
+        self.textConceal.tag_add(tag_id, rstr + str(0), rstr + 'end') #
 
+        
         # Set the text attributes: colour and font size
         # row
         row = str(row + 1)
