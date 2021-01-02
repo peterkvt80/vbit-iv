@@ -68,8 +68,9 @@ class TTXline:
         self.ttxfont2 = Font(family='teletext2', size=round(self.fontH))
         self.ttxfont4 = Font(family='teletext4', size=round(self.fontH*1.95))
 
-        self.text = Text(self.root, width = 40, height = lines) # The normal text
-        self.textConceal = Text(self.root, width = 40, height = lines) # Copy of text but with reveals hidden
+        # allow for side panel of up to 16 characters
+        self.text = Text(self.root, width = 56, height = lines) # The normal text
+        self.textConceal = Text(self.root, width = 56, height = lines) # Copy of text but with reveals hidden
 
         # Most of these options are failed attempts to remove the single pixel lines
         self.text.config(borderwidth=0, foreground='white', background='black', font=self.ttxfont2, padx=0, pady=0, autoseparators=0, highlightbackground='black')
@@ -102,6 +103,8 @@ class TTXline:
         # self.region = 0 # National option selection bits in X/28/0 format 1. Used by RE in tti files.
 
         self.clearFlag = False # Set by clear(), cleared by printHeader()
+        
+        self.offsetSplit = 8 # Where the side panels are split (0..16, default 8)
 
     def deham(self, value):
         # Deham with NO checking! @todo Parity and error correction
@@ -122,6 +125,8 @@ class TTXline:
         # It has two phases
         # 1) Place all the characters on the line
         # 2) Set their attributes: colour and font size
+        
+        
 
         rstr = str(row + 1) + "." # The row string. First Text row is 1
         tag_start=str(rstr +"0")
@@ -150,6 +155,9 @@ class TTXline:
         flashMode = False # @todo
 
         lastMosaicChar = ' '
+        
+        self.text.insert(tag_start, "        ") # This could be a big mistake
+        self.text.insert(tag_start, "        ")
 
         # PASS 1: put the characters in. Selects glyphs for alpha, contiguous gfx, separated gxf
         for i in range(40):
@@ -198,9 +206,9 @@ class TTXline:
                     ch = mapchar(ch, self.natOpt , metaData.getRegion()) # text in alpha mode @todo implement group number
                     ch = mapdiacritical(ch, row, i, metaData.X26CharMappings)
             # Add the character, unless it is hidden
-            self.text.insert(rstr+str(i), ch if not concealed else ' ')
+            self.text.insert(rstr+str(i+self.offsetSplit), ch if not concealed else ' ')
             # Keep the concealed characters only
-            self.textConceal.insert(rstr+str(i), ch if concealed else ' ') # Save the characters that ARE concealed
+            self.textConceal.insert(rstr+str(i+self.offsetSplit), ch if concealed else ' ') # Save the characters that ARE concealed
             # set-after
             if c == 0x1f: # release graphics - set after
                 holdMode = False
@@ -285,8 +293,8 @@ class TTXline:
 #                tag_id = row + '-' + str(ix++) + '-' + text_height + '-' + foreground_colour + '-' + background_colour
                 #tag_id = 'double' + '-' + 'cyan' + '-' + 'black'
                 #print("Setting attributes at " +rstr + str(i+set_at) + " to " + rstr + 'end *' + tag_id + '*')
-                self.text.tag_add(tag_id, rstr + str(i+set_at), rstr + 'end') #
-                self.textConceal.tag_add(tag_id, rstr + str(i+set_at), rstr + 'end') #
+                self.text.tag_add(tag_id, rstr + str(i+set_at+self.offsetSplit), rstr + 'end') #
+                self.textConceal.tag_add(tag_id, rstr + str(i+set_at+self.offsetSplit), rstr + 'end') #
 
                 if text_height == 'double':
                     textFont = self.ttxfont4

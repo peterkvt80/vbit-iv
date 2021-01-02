@@ -50,7 +50,7 @@ try:
     streamIn = subprocess.Popen(config.service_stream, shell=True, stdout=subprocess.PIPE, stdin=None)
     streamOut = subprocess.Popen(config.render, shell=True, stdin=streamIn.stdout)
     
-    #  main loop. Get character, send request to vbit-i
+    #  main loop. Get character, send request to vbit-iv
     ch = '?'
     while True:
         ch = readchar.readchar()

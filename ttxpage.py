@@ -38,7 +38,9 @@ class TTXpage:
         #self.width_value = 768 # not full screen
         #self.height_value=576
         self.root.configure(background='black', borderwidth=0, highlightthickness=0)
-        self.root.geometry("%dx%d+0+0" % (self.width_value, self.height_value))
+        geometry = "%dx%d+0+0" % (self.width_value, self.height_value)
+        print('[ttxpage::_init__] geometry = ' + geometry)
+        self.root.geometry(geometry)
 
         # Make it full screen (Comment it out if you want to run in a window)
         self.root.wm_attributes('-fullscreen','true')

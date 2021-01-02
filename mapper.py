@@ -928,8 +928,8 @@ def getdiacritical(ch, accent):
 
 # @param ch - character to convert to G2 (ordinal value)
 # @return G2 mapping of the character number
-def MapLatinG2(ch):
-    if ch <=0x20:
+def MapLatinG2(ch): # Page 116 Latin G2 Supplementary Set
+    if ch <= 0x20 :
         return 0x20
     if ch==0x21: # inverted exclamation mark
         return 0xa1
@@ -949,6 +949,18 @@ def MapLatinG2(ch):
         return 0xa4
     if ch==0x29: # left single quote
         return 0x2018
+    if ch==0x2a: # left double quote
+        return 0x201c
+    if ch==0x2b: # left pointing double angle quotation mark
+        return 0xab
+    if ch==0x2c: # left pointing arrow
+        return 0x2190
+    if ch==0x2d: # upwards arrow
+        return 0x2191
+    if ch==0x2e: # rightwards arrow
+        return 0x2192
+    if ch==0x2f: # downwards arrow
+        return 0x2193
     # ... @todo    
     if ch==0x55: # quaver
         return 0x266a

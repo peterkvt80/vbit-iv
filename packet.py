@@ -1,7 +1,7 @@
 # packet.py Teletext packet decoder
 # Takes a T42 packet and decodes whatever it can.
 #
-# Copyright (c) 2020 Peter Kwan
+# Copyright (c) 2020, 2021 Peter Kwan
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -37,6 +37,7 @@ class Packet:
         print('C')
         self.X26CharMappings = [] # diacriticals
         self.ChangeColour = [] # background colour replacement
+        self.RowColour = [] # tuple(row 0..24 , clut number 0..3, colour index 0..7)
         return
     
     # reset all meta-data to the defaults
@@ -45,8 +46,8 @@ class Packet:
         self.region = 0
         self.X26CharMappings = []        
         self.ChangeColour = []
+        self.RowColour = []
         clut.reset()
-        self.clearX26()
         
     def mapColourFg(self, row, column, colour):
         return self.mapColour(row, column, colour, True)
@@ -71,11 +72,11 @@ class Packet:
             #print ("[mapColour] i[0]" + str(i[0]))
             # If the address matches and the foreground or background type matches
             if (row - 1) == r and column == c and fg == isFg:
-                print('[mapColour] ' + str(i))
-                print('[mapColour matched] row, col = ' + str(row) + ', ' + str(column) + ' fg = ' + str(isFg))
-                print ("[mapColour matched] clut[ix] " + str(i[2]) + '[' + str(i[3])+ ']')
+                #print('[mapColour] ' + str(i))
+                #print('[mapColour matched] row, col = ' + str(row) + ', ' + str(column) + ' fg = ' + str(isFg))
+                #print ("[mapColour matched] clut[ix] " + str(i[2]) + '[' + str(i[3])+ ']')
                 colour = clut.get_value(i[2], i[3])
-                print('[mapColour matched] colour = ' + colour)
+                #print('[mapColour matched] colour = ' + colour)
                 return colour # found and replaced
         return colour # Not found, don't change
         
@@ -254,6 +255,10 @@ class Packet:
                 return 
             print (" tuple("+str(i)+") mode(" + hex(mode) + ") = " + modeStr.get(mode, hex(mode)))
             if address>=40 and address<=63: # It is a row address group
+                if mode == 0x01: # Full Row Colour. Page 83                    
+                    print ('[decodeX260] todo Full row color mode 0x01')
+                    # we can extract S: 0=row 3=area, C = Clut index, data = colour
+                    # We will need to save this away and execute it 
                 # @todo Modes between 0 and 0x1f
 #When data field D6 and D5 are both set to '0', bits D4 - D0 define the background
 #colour. Bits D4 and D3 select a CLUT in the Colour Map of table 30, and bits D2 -
@@ -274,13 +279,22 @@ class Packet:
                         print ("[decodeX260] set foreground colour at (" + str(self.rowAddr) + ", " + str(address) + ") to " + str(clutIndex) + "[" + str(colourIndex) +']')
                         fgCol = [self.rowAddr, address, clutIndex, colourIndex, True]
                         self.ChangeColour.append(fgCol)
-                if mode == 0x01: # Block Mosaic Character from the G1 Set. Page 90
+                if mode == 0x01: # Block Mosaic Character from the G1 Set. Page 90. Level 1.5
                     # @todo Probably needs to take into account contiguous/separated
                     ch = data & 0x7f
                     if ch >= 0x20 and ch < 0x40:
                         ch = ch + 0xe680 - 0x20
                     if ch >= 0x60 and ch < 0x80:
                         ch = ch + 0xe6a0 - 0x60
+                    mapChar = tuple((self.rowAddr, address, ch))                    
+                    self.addMapping(mapChar)
+                if mode == 0x02: # Smoothed Mosaic Character from the G3 Set. Page 90
+                    # See table 48, Page 127
+                    ch = data & 0x7f
+                    if ch >= 0x20 and ch < 0x60:
+                        ch = ch + 0xe700 - 0x20
+                    if ch >= 0x60 and ch < 0x80:
+                        ch = ch + 0xeee0 - 0x60
                     mapChar = tuple((self.rowAddr, address, ch))                    
                     self.addMapping(mapChar)
                 if mode == 0x03: # Background colour
@@ -293,6 +307,15 @@ class Packet:
                 if mode == 0x09: # Character from G0 set (2.5, 3.5)
                     #print('[decodeX260: mode 9] place character ' + hex(data) + " at (" + str(address) +", " + str(self.rowAddr) + ")")
                     mapChar = tuple((self.rowAddr, address, data))
+                    self.addMapping(mapChar)
+                if mode == 0x0b: # Line Drawing and Smoothed Mosaic Character
+                    # from the G3 Set at Levels 2.5 and 3.5. Level 1.5 should ignore this
+                    ch = data & 0x7f
+                    if ch >= 0x20 and ch < 0x60:
+                        ch = ch + 0xe700 - 0x20
+                    if ch >= 0x60 and ch < 0x80:
+                        ch = ch + 0xeee0 - 0x60
+                    mapChar = tuple((self.rowAddr, address, ch))                    
                     self.addMapping(mapChar)
                 if mode == 0x0f: # Character from the G2 Supplementary Set. Page 94
                     g2char = MapLatinG2(data)
@@ -381,9 +404,5 @@ class Packet:
         #print('TRACE A')
         self.X26CharMappings.append(mappedChar)
         
-    # Clear any X26 mappings
-    def clearX26(self):
-        #print('TRACE B')
-        self.X26CharMappings = []        
     
 metaData = Packet()
