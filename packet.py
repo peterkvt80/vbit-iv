@@ -45,8 +45,8 @@ class Packet:
         self.RowColour = []  # tuple(row 0..24 , clut number 0..3, colour index 0..7)
         self.BlackBackgroundColourSubstitution = False
         self.ColourTableRemapping=0
-        self.leftSidePanel = False
-        self.rightSidePanel = False
+        self.leftSidePanel = True # These should default to False for level 1
+        self.rightSidePanel = True
         clut.reset()
         
     def mapColourFg(self, row, column, colour):
@@ -55,6 +55,7 @@ class Packet:
     def mapColourBg(self, row, column, colour):
         return self.mapColour(row, column, colour, False)
     
+    # X26/0 full colour row
     # @param row - Row number to check
     # @return - The colour value for that row, or black if there is none
     def rowColour(self, row):
@@ -90,7 +91,7 @@ class Packet:
                 colour = clut.get_value(i[2], i[3])
                 #print('[mapColour matched] colour = ' + colour)
                 return colour # found and replaced
-        return colour # Not found, don't change
+        return 'x'
         
     
     # decode a packet. Returns the packet type or 0 if it is not X/26, X28, X29

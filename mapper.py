@@ -564,13 +564,7 @@ def mapdiacritical(ch, row, col, diacritical):
         d = diacritical[i]
         if row==d[0] and col==d[1] : # match character location
             return chr(d[2]) # This is the correct character
-            # STUFF AFTER HERE WE DON'T DO ANY MORE
-            # print("[mapdiacritical] row = " + str(row) + " col = " + str(col) + ", ch = " + ch + " dia = " + str(d[2]))
-            #ch='`'
-            # now see if we can add diacritical d[2] to character ch
-            accent = d[2]
-            ch = getdiacritical(ch, accent)
-    return ch
+    return ch # None found
 
 # Page 95: Characters Including Diacritical Marks
 # @param ch - Character to add a diacritical to

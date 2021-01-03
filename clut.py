@@ -80,6 +80,8 @@ class Clut:
     # @param foreground - True for foreground coilour, or False for background
     # @return - Colour string for tkinter. eg. 'black' or '#000'
     def RemapColourTable(self, colourIndex, remap, foreground):
+        if type(colourIndex) != int:
+            print('[RemapColourTable] colourIndex is not an integer' + colourIndex + ". foreground = " +str(foreground))
         clutIndex = 0
         if foreground:
             if remap>4:

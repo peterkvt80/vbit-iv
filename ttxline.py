@@ -108,6 +108,7 @@ class TTXline:
     # @param packet : packet to write
     # @param row : row number to write (starting from 0)
     def setLine(self, pkt, row):
+        #print('[setLine] ENTERS')
         # It has two phases
         # 1) Place all the characters on the line
         # 2) Set their attributes: colour and font size
@@ -146,6 +147,7 @@ class TTXline:
         self.text.insert(tag_start, "        ")
 
         # PASS 1: put the characters in. Selects glyphs for alpha, contiguous gfx, separated gxf
+        #print('[setLine] rendering row ' + str(row))
         for i in range(40):
             c = pkt[i+2] & 0x7f # strip parity
             # Convert control code ascii
@@ -206,27 +208,30 @@ class TTXline:
         # PASS 2: Add text attributes: font, colour, flash
         
         # Any full row colours?
-        
-        foreground_colour = 'white'
-        background_colour = 'black'
+        #print('[setLine] rendering pass 2')
+        foreground_colour = 7 # 'white'
+        background_colour = 0 # 'black'
         text_height = 'single'
         
         # Set the initial colour for the row
-        background_colour = metaData.rowColour(row) # X26/0 full row colour triplet
+        # background_colour = metaData.rowColour(row) # X26/0 full row colour triplet
         #print('[setLine] row = ' + str(row) + " bgcol = " + background_colour)
         
         # Complicate things if side panels are enabled
         if metaData.leftSidePanel or metaData.rightSidePanel:
+            print('[setLine] SETTING SIDE PANELS')
             tag_id = "rowBGCol"+str(row)
-            self.text.tag_config(tag_id , font = self.ttxfont2, foreground = foreground_colour, background = background_colour)
-            self.textConceal.tag_config(tag_id , font = self.ttxfont2, foreground = foreground_colour, background = background_colour)
+            fg = clut.RemapColourTable(foreground_colour, metaData.ColourTableRemapping, True)
+            bg = metaData.rowColour(row)
+            self.text.tag_config(tag_id , font = self.ttxfont2, foreground = fg, background = bg)
+            self.textConceal.tag_config(tag_id , font = self.ttxfont2, foreground = fg, background = bg)
             if metaData.BlackBackgroundColourSubstitution:
                 self.text.tag_add(tag_id, rstr + str(0), rstr + 'end') # whole row
                 self.textConceal.tag_add(tag_id, rstr + str(0), rstr + 'end') # whole row
             else:
                 # Side panels only
                 # @ todo Check where the actual split is, not just 8+8
-                background_colour = 'black'
+                background_colour = 0 # 'black'
                 if metaData.leftSidePanel:
                     self.text.tag_add(tag_id, rstr + str(0), rstr + str(8)) # left panel
                     self.textConceal.tag_add(tag_id, rstr + str(0), rstr + str(8)) # left panel
@@ -267,47 +272,45 @@ class TTXline:
 
             set_at = 1 # 0 = set at, 1 = set after
             if c==0x1c: # black background - set at
-                background_colour = 'black'
+                background_colour = 0x00
                 attributeChanged = True
                 set_at = 0
-                #background_colour = metaData.mapColourBg(int(row), i, background_colour)
-                #foregroundground_colour = metaData.mapColourFg(int(row), i, foreground_colour) # x26/0
             if c==0x1d: # new background - set at
                 background_colour = foreground_colour
                 attributeChanged = True
                 set_at = 0
-                #background_colour = metaData.mapColourBg(int(row), i, background_colour)
-                #foregroundground_colour = metaData.mapColourFg(int(row), i, foreground_colour) # x26/0
             if c < 0x08 : # alpha colour - set after
-                foreground_colour = clut.RemapColourTable(c, metaData.ColourTableRemapping, True)
+                foreground_colour = c
                 attributeChanged = True
                 # also need to see if there is an X26/0 background colour change
                 #foreground_colour = metaData.mapColourFg(int(row), i, foreground_colour)
                 #background_colour = metaData.mapColourBg(int(row), i, background_colour)
             if c >= 0x10 and c < 0x18: # Mosaic colour - set after
-                foreground_colour = clut.RemapColourTable(c-0x10, metaData.ColourTableRemapping, True) #elf.getcolour(c-0x10)
+                foreground_colour = c-0x10 # self.getcolour(c-0x10)
                 attributeChanged = True
                 #foreground_colour = metaData.mapColourFg(int(row), i, foreground_colour)
                 #background_colour = metaData.mapColourBg(int(row), i, background_colour)
                 # also need to see if there is an X26/0 foreground colour change
             fg = metaData.mapColourFg(int(row), i+1, foreground_colour) # Set after
-            if fg != foreground_colour:
+            if fg != 'x':
                 attributeChanged = True
-                foreground_colour = fg
+                #foreground_colour = fg
             bg = metaData.mapColourBg(int(row), i+1, background_colour) # Set at
-            if bg != background_colour:
+            if bg != 'x':
                 attributeChanged = True
-                background_colour = bg
+                #background_colour = bg
             if attributeChanged:
+                if fg != 'x':
+                    fgc = fg
+                else:
+                    fgc = clut.RemapColourTable(foreground_colour, metaData.ColourTableRemapping, True)
+                if bg != 'x':
+                    bgc = bg
+                else:
+                    bgc = clut.RemapColourTable(background_colour, metaData.ColourTableRemapping, False)
                 # tag_id identifies the row
-                tag_id = row + '-' + str(ix) + '-' + text_height + '-' + foreground_colour + '-' + background_colour
+                tag_id = row + '-' + str(ix) + '-' + text_height + '-' + fgc + '-' + str(background_colour)
                 ix = ix + 1
-#                tag_id = row + '-' + str(ix++) + '-' + text_height + '-' + foreground_colour + '-' + background_colour
-                #tag_id = 'double' + '-' + 'cyan' + '-' + 'black'
-                #print("Setting attributes at " +rstr + str(i+set_at) + " to " + rstr + 'end *' + tag_id + '*')
-     
-                #self.text.tag_add(tag_id, rstr + str(i+set_at+self.offsetSplit), rstr + 'end') #
-                #self.textConceal.tag_add(tag_id, rstr + str(i+set_at+self.offsetSplit), rstr + 'end') #
                 self.text.tag_add(tag_id, rstr + str(i+set_at+self.offsetSplit), rstr + str(48)) # @todo This depends on the side panel columns
                 self.textConceal.tag_add(tag_id, rstr + str(i+set_at+self.offsetSplit), rstr + str(48)) #
 
@@ -315,8 +318,8 @@ class TTXline:
                     textFont = self.ttxfont4
                 else:
                     textFont = self.ttxfont2
-                self.text.tag_config(tag_id , font = textFont, foreground = foreground_colour, background = background_colour)
-                self.textConceal.tag_config(tag_id , font = textFont, foreground = foreground_colour, background = background_colour)
+                self.text.tag_config(tag_id , font = textFont, foreground = fgc, background = bgc)
+                self.textConceal.tag_config(tag_id , font = textFont, foreground = fgc, background = bgc)
 
         self.text.config(state = DISABLED) # prevent editing
         return hasDoubleHeight
