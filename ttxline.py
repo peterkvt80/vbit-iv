@@ -32,22 +32,8 @@ class TTXline:
     print("TTXLine created")
 
     # Map a teletext colour number to an actual colour
-    # I suspect that the CLUT
-    def getcolourOLD(self, c):
-        switcher = {
-        0: "black",
-        1: "red",
-        2: "green1",
-        3: "yellow",
-        4: "blue",
-        5: "magenta",
-        6: "cyan",
-        7: "white"
-        }
-        return switcher.get(c, "white")
-
-    # Map a teletext colour number to an actual colour
-    # I suspect that the CLUT
+    # The CLUT needs to be chosen according to X26 settings so this isn't good enough
+    # Probably also needs to go to CLUT instead of being in here
     def getcolour(self, c):
         global clut
         return clut.clut0[c]
@@ -224,15 +210,29 @@ class TTXline:
         foreground_colour = 'white'
         background_colour = 'black'
         text_height = 'single'
+        
         # Set the initial colour for the row
         background_colour = metaData.rowColour(row) # X26/0 full row colour triplet
-        print('[setLine] row = ' + str(row) + " bgcol = " + background_colour)
+        #print('[setLine] row = ' + str(row) + " bgcol = " + background_colour)
         
-        tag_id = "rowBGCol"+str(row)
-        self.text.tag_config(tag_id , font = self.ttxfont2, foreground = foreground_colour, background = background_colour)
-        self.textConceal.tag_config(tag_id , font = self.ttxfont2, foreground = foreground_colour, background = background_colour)
-        self.text.tag_add(tag_id, rstr + str(0), rstr + 'end') #
-        self.textConceal.tag_add(tag_id, rstr + str(0), rstr + 'end') #
+        # Complicate things if side panels are enabled
+        if metaData.leftSidePanel or metaData.rightSidePanel:
+            tag_id = "rowBGCol"+str(row)
+            self.text.tag_config(tag_id , font = self.ttxfont2, foreground = foreground_colour, background = background_colour)
+            self.textConceal.tag_config(tag_id , font = self.ttxfont2, foreground = foreground_colour, background = background_colour)
+            if metaData.BlackBackgroundColourSubstitution:
+                self.text.tag_add(tag_id, rstr + str(0), rstr + 'end') # whole row
+                self.textConceal.tag_add(tag_id, rstr + str(0), rstr + 'end') # whole row
+            else:
+                # Side panels only
+                # @ todo Check where the actual split is, not just 8+8
+                background_colour = 'black'
+                if metaData.leftSidePanel:
+                    self.text.tag_add(tag_id, rstr + str(0), rstr + str(8)) # left panel
+                    self.textConceal.tag_add(tag_id, rstr + str(0), rstr + str(8)) # left panel
+                if metaData.rightSidePanel:
+                    self.text.tag_add(tag_id, rstr + str(48), rstr + 'end') # right panel
+                    self.textConceal.tag_add(tag_id, rstr + str(48), rstr + 'end') # right panel
 
         
         # Set the text attributes: colour and font size
@@ -279,13 +279,13 @@ class TTXline:
                 #background_colour = metaData.mapColourBg(int(row), i, background_colour)
                 #foregroundground_colour = metaData.mapColourFg(int(row), i, foreground_colour) # x26/0
             if c < 0x08 : # alpha colour - set after
-                foreground_colour = self.getcolour(c)
+                foreground_colour = clut.RemapColourTable(c, metaData.ColourTableRemapping, True)
                 attributeChanged = True
                 # also need to see if there is an X26/0 background colour change
                 #foreground_colour = metaData.mapColourFg(int(row), i, foreground_colour)
                 #background_colour = metaData.mapColourBg(int(row), i, background_colour)
             if c >= 0x10 and c < 0x18: # Mosaic colour - set after
-                foreground_colour = self.getcolour(c-0x10)
+                foreground_colour = clut.RemapColourTable(c-0x10, metaData.ColourTableRemapping, True) #elf.getcolour(c-0x10)
                 attributeChanged = True
                 #foreground_colour = metaData.mapColourFg(int(row), i, foreground_colour)
                 #background_colour = metaData.mapColourBg(int(row), i, background_colour)
@@ -305,8 +305,11 @@ class TTXline:
 #                tag_id = row + '-' + str(ix++) + '-' + text_height + '-' + foreground_colour + '-' + background_colour
                 #tag_id = 'double' + '-' + 'cyan' + '-' + 'black'
                 #print("Setting attributes at " +rstr + str(i+set_at) + " to " + rstr + 'end *' + tag_id + '*')
-                self.text.tag_add(tag_id, rstr + str(i+set_at+self.offsetSplit), rstr + 'end') #
-                self.textConceal.tag_add(tag_id, rstr + str(i+set_at+self.offsetSplit), rstr + 'end') #
+     
+                #self.text.tag_add(tag_id, rstr + str(i+set_at+self.offsetSplit), rstr + 'end') #
+                #self.textConceal.tag_add(tag_id, rstr + str(i+set_at+self.offsetSplit), rstr + 'end') #
+                self.text.tag_add(tag_id, rstr + str(i+set_at+self.offsetSplit), rstr + str(48)) # @todo This depends on the side panel columns
+                self.textConceal.tag_add(tag_id, rstr + str(i+set_at+self.offsetSplit), rstr + str(48)) #
 
                 if text_height == 'double':
                     textFont = self.ttxfont4

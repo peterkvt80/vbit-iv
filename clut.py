@@ -74,6 +74,32 @@ class Clut:
         # set defaults
         self.reset()
     
+    # Used by X26/0 to swap entire cluts
+    # @param colour - Colour index 0..7
+    # @param remap - Remap 0..7
+    # @param foreground - True for foreground coilour, or False for background
+    # @return - Colour string for tkinter. eg. 'black' or '#000'
+    def RemapColourTable(self, colourIndex, remap, foreground):
+        clutIndex = 0
+        if foreground:
+            if remap>4:
+                clutIndex = 2
+            elif remap<3:
+                clutIndex = 0
+            else:
+                clutIndex = 1
+        else: # background
+            if remap < 3:
+                clutIndex = remap
+            elif remap == 3 or remap == 5:
+                clutIndex = 1
+            elif remap == 4 or remap == 6:
+                clutIndex = 2
+            else:
+                clutIndex = 3
+        return self.get_value(clutIndex, colourIndex)
+        
+    
     def reset(self): # To values from table 12.4
         # CLUT 0 full intensity
         self.clut0[0] = '#000' # black

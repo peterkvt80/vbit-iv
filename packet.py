@@ -33,20 +33,20 @@ from mapper import getdiacritical, MapLatinG2
 # Data decoded from the packets may be retrieved but not specific data about the packets themselves
 class Packet:
     def __init__(self):
-        self.region = 0
-        print('C')
-        self.X26CharMappings = [] # diacriticals
-        self.ChangeColour = [] # background colour replacement
-        self.RowColour = [] # tuple(row 0..24 , clut number 0..3, colour index 0..7)
+        self.clear()
         return
     
     # reset all meta-data to the defaults
     def clear(self):
-        print('D')
         self.region = 0
-        self.X26CharMappings = []        
-        self.ChangeColour = []
-        self.RowColour = []
+        self.X26CharMappings = []  # diacriticals
+        # X28/0 settings
+        self.ChangeColour = [] # background colour replacement
+        self.RowColour = []  # tuple(row 0..24 , clut number 0..3, colour index 0..7)
+        self.BlackBackgroundColourSubstitution = False
+        self.ColourTableRemapping=0
+        self.leftSidePanel = False
+        self.rightSidePanel = False
         clut.reset()
         
     def mapColourFg(self, row, column, colour):
@@ -60,7 +60,8 @@ class Packet:
     def rowColour(self, row):
         for i in self.RowColour:
             r = i[0] # row
-            if r == row: # our row?
+            a = i[3] # if set, then all rows from here are coloured
+            if r == row or ((row > r) and a) : # our row?
                 c = i[1] # clut
                 h = i[2] # index
                 return clut.get_value(c, h)
@@ -137,9 +138,9 @@ class Packet:
         secondG0 = ((t >> 14) & 0x0f) << 3 # 7 bit value defined in table 33. 
         t = triplets[1]
         secondG0 = secondG0 | t & 0x07
-        leftSidePanel = t & 0x08 > 0
-        rightSidePanel = t & 0x10 > 0
-        print("* coding = "+ str(coding) + " secondG0 = " + str(secondG0) + " leftPanel = " + str(leftSidePanel) + " rightPanel = " + str(rightSidePanel))
+        self.leftSidePanel = t & 0x08 > 0
+        self.rightSidePanel = t & 0x10 > 0
+        print("* coding = "+ str(coding) + " secondG0 = " + str(secondG0) + " leftPanel = " + str(self.leftSidePanel) + " rightPanel = " + str(self.rightSidePanel))
         sidePanelStatus = t & 0x20 > 0 # Level 3.5 only
         sidePanelColumns = t & 0x1c >> 6 # Number of columns in side panels
         print("* sidePanelStatus = " + str(sidePanelStatus) + " sidePanelColumns = " + str(sidePanelColumns))
@@ -184,6 +185,10 @@ class Packet:
                 clut.set_value(colourHex, clut_ix, colour_index)
                 #print("[decodeX280Format1] colour = " + hex(colour) +", colourHex = " + colourHex )
                 colour = 0
+        # remaining bits
+        t = triplets[13-1]
+        self.BlackBackgroundColourSubstitution = (t & 0x04000) > 0 # page 33. Bit 15
+        self.ColourTableRemapping = (t >> 15) & 0x07
         print("[decodeX280Format1] EXITS")
         
     def decodeX260(self, pkt):
@@ -268,14 +273,13 @@ class Packet:
             if address>=40 and address<=63: # It is a row address group
                 self.rowAddr = address - 40
                 if mode == 0x01: # Full Row Colour. Page 83                    
-                    print ('[decodeX260] todo Full row colour mode 0x01')
+                    # print ('[decodeX260] todo Full row colour mode 0x01')
                     # push a tuple(row, clut, colour)
                     s = (data >> 5) & 0x03 # 0..3
-                    if s != 0:
-                        print('[decodeX260] WARNING s is not equal to 0. @todo') # s == 3 means all rows that follow use this colour
+                    multipleRow = s != 0
                     clutIndex = (data >> 3) & 0x03 # 0..3
                     colourIndex= data & 0x07 # 0..7
-                    self.RowColour.append(tuple((self.rowAddr, clutIndex, colourIndex )))
+                    self.RowColour.append(tuple((self.rowAddr, clutIndex, colourIndex, multipleRow )))
                     # we can extract S: 0=row 3=area, C = Clut index, data = colour
                     # We will need to save this away and execute it 
                 # @todo Modes between 0 and 0x1f
@@ -409,6 +413,7 @@ class Packet:
         print("[Dump] Region = " + str(self.region))
         clut.dump()
         print("[Dump] diacritical count = " + str(len(self.X26CharMappings)))
+        print("[Dump] ColourTableRemapping = " + str(self.ColourTableRemapping)) # Table 33
         
     # The clut is shared
     # Other metadata has access functions
