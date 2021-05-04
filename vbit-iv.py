@@ -49,6 +49,8 @@ holdMode = False
 subCode = 0 # The current page subcode
 lastSubcode = 0 # The previous carousel page subcode
 
+suppressHeader = False
+
 # remote
 pageNum = "100"
 
@@ -63,6 +65,10 @@ print ("mag = "+str(currentMag))
 if int(sys.argv[2])>0:
     currentPage = int(sys.argv[2], 16)
 print ("page = "+str(currentPage))
+
+def dump(pkt, row):
+    print("dump row = "+str(row))
+    print(pkt.hex())
 
 def deham(value):
     # Deham with NO checking! @todo Parity and error correction
@@ -94,6 +100,10 @@ def decodeSubcode(pkt):
     s3 = deham(pkt[6])
     s4 = deham(pkt[7]) & 0x03
     return (s4 << 11) + (s3 << 7) + (s2 << 4) + s1
+
+def getC7(pkt): # C7 - Suppress header
+    s1 = deham(pkt[8])
+    return s1 & 0x01
 
 def remote(ch):
     global pageNum
@@ -150,7 +160,7 @@ def remote(ch):
             seeking = True # @todo If we select the page we are already on
         page_number = 'P' + pageNum
         print("page number = " + page_number)
-        ttx.printHeader(lastPacket,  page_number+'    ', seeking)
+        ttx.printHeader(lastPacket,  page_number+'    ', seeking, False)
     if ch=='d':
         metaData.dump()
     else:
@@ -159,6 +169,7 @@ def remote(ch):
     #if seeking:
     #    ttx.clear()
 
+# \param pkt
 def process(pkt):
     global capturing
     global currentMag
@@ -170,6 +181,7 @@ def process(pkt):
     global subCode
     global lastSubcode
     global clut
+    global suppressHeader
 
     result = mrag(pkt[0], pkt[1])
     mag = result[0]
@@ -179,29 +191,34 @@ def process(pkt):
     # If we hit a row that follows a header, skip the packet
     if elideRow>0 and elideRow == row:
         ttx.mainLoop()
-        #print("eliding row= " + str(elideRow))
+        print("eliding row= " + str(elideRow))
         elideRow=0
         return
     # only display things that are on our magazine
     if currentMag == mag: # assume parallel mode
         if row == 0:
             if holdMode:
-                ttx.printHeader(lastPacket, "HOLD    ", False)
+                ttx.printHeader(lastPacket, "HOLD    ", False, False)
                 return
 #      print("\033[0;0fP", end='')
             # is this the magazine that we want?
             page = decodePage(pkt)
             subcode = decodeSubcode(pkt) # Used to clear down page if changed. Also clears X26 char map
+            # This is where we need to grab transmission flags @todo
             capturing = currentPage == page
             if capturing:
                 seeking = False # Capture starts if this is the right page
                 lastPacket = pkt
+                suppressHeader = getC7(pkt)>0
                 if subcode != lastSubcode:
                     lastSubcode = subcode
                     ttx.clear()
+            if seeking:
+                suppressHeader = False
+                    
                 #ttx.lines.clearX26()
                 clut.reset() # @todo Do we need to save colours in some cases?
-                print("sub-code = " + hex(subcode))
+                # print("sub-code = " + hex(subcode))
 
 
             #if not seeking: # new header starts rendering the page
@@ -211,7 +228,7 @@ def process(pkt):
             #printRow(pkt, 0, 0, "P{:1d}{:02X}    ".format(currentMag,currentPage))
             elideRow = 0
             # Show the whole header if we are capturing. Otherwise just show the clock
-            ttx.printHeader(pkt,  "P{:1d}{:02X}    ".format(currentMag,currentPage), seeking)
+            ttx.printHeader(pkt,  "P{:1d}{:02X}    ".format(currentMag,currentPage), seeking, suppressHeader)
             #if capturing:
             #printRow(packet, 0, 0, "{:1d}{:02X}".format(mag,page))
             # print("\033[2J", end='') # clear screen
@@ -222,8 +239,9 @@ def process(pkt):
         # @todo Need to copy all pages until a new header arrives
             if capturing:
                 if row < 25:
-                    #printRow(pkt, row+1)
+                    #dump(pkt, row)
                     if ttx.printRow(pkt, row): # double height?
+                        print("row = " + str(row) + " row length ="+ str(len(pkt)))
                         elideRow = row+1
                 if row == 26:
                     # ttx.decodeRow26(pkt) # @todo TO BE REPLACED

@@ -44,7 +44,7 @@ class Packet:
         self.ChangeColour = [] # background colour replacement
         self.RowColour = []  # tuple(row 0..24 , clut number 0..3, colour index 0..7)
         self.BlackBackgroundColourSubstitution = False
-        self.ColourTableRemapping=0
+        self.ColourTableRemapping=0 # clut swap 
         self.leftSidePanel = True # These should default to False for level 1
         self.rightSidePanel = True
         clut.reset()
@@ -340,6 +340,14 @@ class Packet:
                         ch = ch + 0xeee0 - 0x60
                     mapChar = tuple((self.rowAddr, address, ch))                    
                     self.addMapping(mapChar)
+                if mode == 0x0c: # Display attributes
+                    print('[setLine] Display Attributes, data = ' + hex(data))
+                    if data & 0x10: # invert colours
+                        ch = ch # @todo placeholder
+                if mode == 0x0e: # Font style. P94 Table 29
+                    # Data bit 2=italic 1=bold 0=proprotional
+                    # Probably can do them as tkinter font attributes
+                    ch = ch # @todo
                 if mode == 0x0f: # Character from the G2 Supplementary Set. Page 94
                     g2char = MapLatinG2(data)
                     mapChar = tuple((self.rowAddr, address, g2char))

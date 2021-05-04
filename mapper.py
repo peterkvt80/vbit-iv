@@ -127,7 +127,9 @@ def mapregion3(c, option): # East Europe
     return mapEN(c)
 
 def mapregion4(c, option): # Russia/Bulgaria
+    print("Region 4 option = " + str(option))
     if option==0:
+        return mapRU(c) # serbian
         return mapRS(c) # serbian
     if option==1:
         return mapRU(c) # russian
@@ -213,17 +215,17 @@ def mapSE(c): # Swedish Nat. Opt. 2, group 0
         # '#':  '#', # 2/3 hash not mapped
         '$':  chr(0x00a4), # 2/4 currency bug
         '@':  chr(0x00c9), # 4/0 E acute
-        '[':  chr(0x00c4), # 5/B A umlaut
-        '\\': chr(0x00d4), # 5/C O umlaut
+        '[':  chr(0x00c4), # 5/B A diaresis
+        '\\': chr(0x00d6), # 5/C O diaresis
         # Nat. opt. 2
         ']':  chr(0x00c5), # 5/D A ring
-        '^':  chr(0x00dc), # 5/E U umlaut
+        '^':  chr(0x00dc), # 5/E U diaresis
         '_':  chr(0x005f), # 5/F Underscore (not mapped)
         '`':  chr(0x00e9), # 6/0 e acute
-        '{':  chr(0x00e4), # 7/B a umlaut
-        '|':  chr(0x00d6), # 7/C o umlaut
+        '{':  chr(0x00e4), # 7/B a diaresis
+        '|':  chr(0x00f6), # 7/C o diaresis
         '}':  chr(0x00e5), # 7/D a ring
-        '~':  chr(0x00fc), # 7/E u umlaut
+        '~':  chr(0x00fc), # 7/E u diaresis
     }
     return mapper.get(c, c)
 
@@ -955,6 +957,74 @@ def MapLatinG2(ch): # Page 116 Latin G2 Supplementary Set
         return 0x2192
     if ch==0x2f: # downwards arrow
         return 0x2193
+    # 30
+    if ch==0x30: # degree
+        return 0xb0
+    if ch==0x31: # plus/minus
+        return 0xb1
+    if ch==0x32: # superscript 2
+        return 0xb2
+    if ch==0x33: # superscript 3
+        return 0xb3
+    if ch==0x78: # multiplication x
+        return 0xd7
+    if ch==0x35: # micro u
+        return 0xb5
+    if ch==0x36: # pilcrow
+        return 0xb6
+    if ch==0x37: # middle dot
+        return 0xb7
+    if ch==0x38: # division
+        return 0xf7
+    if ch==0x39: # right single quote
+        return 0x2019
+    if ch==0x3a: # right double quote
+        return 0x201d
+    if ch==0x3b: # right double angle quote 
+        return 0xbb
+    if ch==0x3c: # quarter
+        return 0xbc
+    if ch==0x3d: # half
+        return 0xbd
+    if ch==0x3e: # three quarter
+        return 0xbe
+    if ch==0x3f: # inverted question mark
+        return 0xbf
+    
+    # Diacriticals
+    if ch==0x40:  # space
+        return 0x20
+    if ch==0x41:  # grave
+        return 0x2cb
+    if ch==0x42:  # acute
+        return 0x2ca
+    if ch==0x43:  # circumflex
+        return 0x2c6
+    if ch==0x44:  # tilde
+        return 0x2dc
+    if ch==0x45:  # macron
+        return 0x2c9
+    if ch==0x46:  # breve
+        return 0x2d8
+    if ch==0x47:  # dot above
+        return 0x2d9
+    if ch==0x48:  # diaeresis
+        return 0xa8
+    if ch==0x49:  # dot under (full stop :-o)
+        return 0x2e
+    if ch==0x4a:  # ring above
+        return 0x2da
+    if ch==0x4b:  # cedilla
+        return 0xb8
+    if ch==0x4c:  # low macron
+        return 0x2cd
+    if ch==0x4d:  # double acute
+        return 0xdd
+    if ch==0x4e:  # ogonek
+        return 0x2db
+    if ch==0x4f:  # caron
+        return 0x2c7
+
     # ... @todo    
     if ch==0x55: # quaver
         return 0x266a

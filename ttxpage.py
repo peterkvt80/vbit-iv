@@ -83,11 +83,11 @@ class TTXpage:
     
     def printRow(self, packet, row):
         if row < 0 or row > 24 :
-            return
-        self.lines.printRow(packet, row)
+            return false
+        return self.lines.printRow(packet, row)
 
-    def printHeader(self, packet, page, seeking):
-        self.lines.printHeader(packet, page, seeking)
+    def printHeader(self, packet, page, seeking, suppress = False):
+        self.lines.printHeader(packet, page, seeking, suppress)
 
     # Actually draw the stuff
     def mainLoop(self):

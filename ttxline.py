@@ -103,6 +103,12 @@ class TTXline:
     # true if while in graphics mode, it is a mosaic character. False if control or upper case alpha
     def isMosaic(self, ch):
         return ch & 0x20; # Bit 6 set?
+    
+    def dump(self, pkt):
+        return
+        print("Dumping row")
+        for i in range(len(pkt)):
+            print(str(i)+' '+pkt.hex())
 
     # clear and replace the line contents
     # @param packet : packet to write
@@ -112,7 +118,8 @@ class TTXline:
         # It has two phases
         # 1) Place all the characters on the line
         # 2) Set their attributes: colour and font size
-        
+        if row==2:
+            self.dump(pkt)
         
 
         rstr = str(row + 1) + "." # The row string. First Text row is 1
@@ -219,7 +226,7 @@ class TTXline:
         
         # Complicate things if side panels are enabled
         if metaData.leftSidePanel or metaData.rightSidePanel:
-            print('[setLine] SETTING SIDE PANELS')
+            #print('[setLine] SETTING SIDE PANELS')
             tag_id = "rowBGCol"+str(row)
             fg = clut.RemapColourTable(foreground_colour, metaData.ColourTableRemapping, True)
             bg = metaData.rowColour(row)
@@ -267,8 +274,7 @@ class TTXline:
                 #tag_id = "thd"+str(row)+"-"+str(i)
                 #tag_id = text_height + '-' + foreground_colour + '-' + background_colour
                 #self.text.tag_add(tag_id, rstr + str(i+1), rstr + 'end') # column + 1 - set-after
-                #print("Setting height attributes " + tag_id)
-                ##self.text.tag_config(tag_id, font=self.ttxfont4, offset=0) # double height
+                #self.text.tag_config(tag_id, font=self.ttxfont4, offset=0) # double height
 
             set_at = 1 # 0 = set at, 1 = set after
             if c==0x1c: # black background - set at
@@ -316,6 +322,7 @@ class TTXline:
 
                 if text_height == 'double':
                     textFont = self.ttxfont4
+                    print("line 325. It got here")
                 else:
                     textFont = self.ttxfont2
                 self.text.tag_config(tag_id , font = textFont, foreground = fgc, background = bgc)
@@ -339,7 +346,7 @@ class TTXline:
         print("Page = " + hex(page) + ", C4(clear) = " + str(C4) + ", C5 = " + str(C5) + " natOpt = " + str(self.natOpt))
 
     # param page - An 8 character info string for the start of the header
-    def printHeader(self, packet, page = "Header..", seeking = False):
+    def printHeader(self, packet, page = "Header..", seeking = False, suppressHeader = False):
         if self.clearFlag:
             self.clearFlag = False
         lines = self.text.index(END)
@@ -348,6 +355,15 @@ class TTXline:
             print("[printHeader] " + str(line) + " Too many lines. Some bug somewhere!")
         self.text.config(state = NORMAL) # allow editing
         buf = bytearray(packet) # convert to bytearray so we can modify it
+        if suppressHeader:
+            self.clear
+            for i in range(42): # blank out the header bytes
+                buf[i]=0x00
+            print("SUPPRESS HEADER!")
+            buf[10]=ord('x')
+            buf[11]=ord('y')
+            self.setLine(buf,0)
+            return
         for i in range(34,42): # copy the clock
             self.currentHeader[i] = buf[i]
             #print(str(type(self.currentHeader)))
@@ -407,6 +423,7 @@ class TTXline:
     # Return True if the row includes double height
     def printRow(self, packet, row):
         self.text.config(state = NORMAL) # allow editing
+        # If the line is double height, then skip the next line 
         if self.setLine(packet, row - self.rowOffset):
             self.rowOffset=self.rowOffset+1
             return True
