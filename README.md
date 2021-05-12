@@ -25,7 +25,7 @@ The easiest method is to run the in-vision script as this starts everything and 
 
 ./innervision.py
 
-You can type commands directly onto the teletext page, or into the shell that you launched the program from. In the case of the shell, it sends the comands through the reote control port so you can't attach another remote control client to it.
+You can type commands directly onto the teletext page, or into the shell that you launched the program from. In the case of the shell, it sends the comands through the remote control port so you can't attach another remote control client to it.
 
 To change the service, use the vbit configuration utility. You can manages services here including adding, selecting and updating. Don't use the Start VBIT2 option as the in vision viewer doesn't need it.
 
