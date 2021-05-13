@@ -36,7 +36,9 @@ print("Connecting to vbit-iv")
 
 context = zmq.Context()
 
-#  Socket to talk to server
+#  Socket to talk to server. TODO: Make the IP address and port a command line parameter
+# Default to local host. If you want to control vbit-iv from another computer then
+# set the host address to your vbit-iv machine
 host = "tcp://127.0.0.1:7777"
 #host = "tcp://192.168.1.85:7777"
 socket = context.socket(zmq.REQ)
@@ -50,7 +52,10 @@ socket.connect(host)
 # d - toggle double height
 # + - next page
 # - - previous page
-
+# u - red button
+# i - green button
+# o - yellow button
+# p - cyan button
 
 
 # This client can be terminated with

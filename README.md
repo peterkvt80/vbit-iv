@@ -51,3 +51,4 @@ The viewer has a network remote control on port 7777. vbit-remote.py is a suitab
 
 ./vbit-remote.py
 
+You can write your own remote control, for controlling vbit-iv however you want with a little bit of Python coding. Some ideas for you: A Pages from Ceefax sequencer. A voice activated page selector. A carousel of the last ten updated pages. A default page reset. The system always returns to the same page every five minutes, so people can browse but it resets. Any more ideas?
