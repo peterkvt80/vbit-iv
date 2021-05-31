@@ -50,5 +50,22 @@ The keyboard is used as a remote control. You may need to click on the screen fi
 The viewer has a network remote control on port 7777. vbit-remote.py is a suitable client. It uses the same commands as the keyboard. You can edit the code to change your host if you want to run the remote on another computer. To use it just run the viewer and type the commands into the shell you ran it from.
 
 ./vbit-remote.py
+  
+Another remote control is "Pages from Teefax". This sequences a series of pages. First create a file caled pft.config. Each line is a three digit page number, a space and then a timing. The example below shows all of the BBC news pages in Teefax. Note that the units of the page number can be replaced by a wildcard to display all the pages (in this case) 110 to 119
+  
+  104 20
+  105 20
+  106 20
+  107 20
+  108 20
+  109 20
+  11* 20
+  120 20
+  121 20
+  122 20
+  123 20
+  134 20
+  
+Run the remote control with ./pft.py  
 
 You can write your own remote control, for controlling vbit-iv however you want with a little bit of Python coding. Some ideas for you: A Pages from Ceefax sequencer. A voice activated page selector. A carousel of the last ten updated pages. A default page reset. The system always returns to the same page every five minutes, so people can browse but it resets. Any more ideas?
