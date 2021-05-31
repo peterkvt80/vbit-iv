@@ -55,6 +55,7 @@ class Reader:
         self.page_number_units = 0
         self.page_number_tens = 0
         self.page_wildcard = 0
+        self.page_timing = 20
     def readline(self):
         self.pageIndex = self.pageIndex+1
         return self.content[self.pageIndex % self.count]
@@ -70,7 +71,9 @@ class Reader:
                 self.magazine_number = x[0]
                 self.page_number_tens = x[1]
                 self.page_number_units = x[2]
-            print ("NEXT PAGE. Mag = " + self.magazine_number)
+                t = x[4:]
+                self.page_timing = int(t)
+                print ("NEXT PAGE. Mag = " + self.magazine_number)
             self.state = self.state+1
             return self.magazine_number
         if self.state == 1: # page tens
@@ -90,7 +93,7 @@ class Reader:
             print ("NEXT PAGE. Units = " + unit)
             return unit
         if self.state == 3: # Delay for page time then reset ready for next page
-            time.sleep(20) # todo
+            time.sleep(self.page_timing)
             self.state = 0
             return " "
 
