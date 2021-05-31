@@ -49,14 +49,15 @@ class TTXline:
 
         lines = 25
 
-        self.fontH=-round((-1+self.height_value/(lines+1)))#
+        self.fontH=-round((-1+self.height_value/(lines+2)))#
         # self.ttxfont0 = Font(family='teletext2', size=round(self.fontH/2))
         self.ttxfont2 = Font(family='teletext2', size=round(self.fontH))
         self.ttxfont4 = Font(family='teletext4', size=round(self.fontH*1.95))
 
         # allow for side panel of up to 16 characters
-        self.text = Text(self.root, width = 56, height = lines) # The normal text
-        self.textConceal = Text(self.root, width = 56, height = lines) # Copy of text but with reveals hidden
+        side=16
+        self.text = Text(self.root, width = 40+side, height = lines) # The normal text
+        self.textConceal = Text(self.root, width = 40+side, height = lines) # Copy of text but with reveals hidden
 
         # Most of these options are failed attempts to remove the single pixel lines
         self.text.config(borderwidth=0, foreground='white', background='black', font=self.ttxfont2, padx=0, pady=0, autoseparators=0, highlightbackground='black')
