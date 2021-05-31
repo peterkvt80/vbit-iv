@@ -11,12 +11,12 @@ A network server listens for remote control commands so you can select pages by 
 
 # Installation
 
-Requirements: Linux operating system. Tested with Ubuntu. Should work with Raspberry Pi OS. Python 3. <List of Python modules to add like zmq> VBIT2 teletext streamer.
+Requirements: Linux operating system. Tested with Ubuntu and Raspberry Pi OS. Python 3. <List of Python modules to add like zmq> VBIT2 teletext streamer.
 It may work on Windows if you use the Windows version of VBIT2 but you are on your own!
 
 * Install VBIT2 as detailed in the Github project. Use vbit-config to add services and select one to display.
 * Download the ZIP and unpack it somewhere convenient. (Or clone it if you want to keep the code up to date)
-* Click on the font files and install them onto your system. These are teletext2.ttf and teletext4.ttf.
+* Click on the font files and install them onto your system. These are teletext2.ttf and teletext4.ttf. For Raspberry Pi OS just copy them to the fonts folder. 
 
 # Running
 Move to your vbit-iv/ directory. There are a number of ways that you could run the code.
