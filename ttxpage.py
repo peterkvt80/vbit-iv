@@ -4,7 +4,7 @@
 # You can modify this to run full frame
 # or a smaller window
 #
-# Copyright (c) 2020 Peter Kwan
+# Copyright (c) 2020-2021 Peter Kwan
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,19 +27,38 @@
 from tkinter import Tk
 from ttxline import TTXline
 
+
+import screeninfo
+
 class TTXpage:
     print("TTXPage created")
+    
+    def get_monitor_from_coord(self, x, y):
+        monitors = screeninfo.get_monitors()
+
+        for m in reversed(monitors):
+            if m.x <= x <= m.width + m.x and m.y <= y <= m.height + m.y:
+                return m
+        return monitors[0]
+
+  
+          
+
     def __init__(self):
         self.root = Tk()
+        
+        # Get the screen which contains top
+        current_screen = self.get_monitor_from_coord(self.root.winfo_x(), self.root.winfo_y())
 
-        self.width_value=self.root.winfo_screenwidth() # full screen
-        self.height_value=self.root.winfo_screenheight()
+        # Get the monitor's size
+        self.width_value = current_screen.width
+        self.height_value = current_screen.height          
 
-        #self.width_value = 768 # not full screen
-        #self.height_value=576
         self.root.configure(background='black', borderwidth=0, highlightthickness=0)
         geometry = "%dx%d+0+0" % (self.width_value, self.height_value)
         print('[ttxpage::_init__] geometry = ' + geometry)
+        
+        print(' GEOMETRY = ' + geometry)
         self.root.geometry(geometry)
 
         # Make it full screen (Comment it out if you want to run in a window)
@@ -48,7 +67,7 @@ class TTXpage:
         self.root.wait_visibility(self.root)
 
         # lines
-        self.lines = TTXline(self.root)
+        self.lines = TTXline(self.root, self.height_value)
         self.lines.text.pack()
 
         self.root.update_idletasks()
@@ -64,6 +83,8 @@ class TTXpage:
         # Level 1.5 character replacement
         self.rowAddr = 0
         self.colAddr = 0
+        print("ttiPage constructor exits")
+        
         
     # Return the page number for the link selected by index
     def getPage(self, index):

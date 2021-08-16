@@ -2,7 +2,7 @@
 
 # Teletext Stream to Invision decoder
 #
-# Copyright (c) 2020 Peter Kwan
+# Copyright (c) 2020-2021 Peter Kwan
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -38,21 +38,26 @@ class TTXline:
         global clut
         return clut.clut0[c]
 
-    def __init__(self, root_param):
+    def __init__(self, root_param, height=360):
         # this is where we define a Text object and set it up
         self.root = root_param
         self.text = Text(self.root)
 
         # establish the maximum font size required to fill the available space
         # what is the window height?
-        self.height_value=self.root.winfo_screenheight()
+        self.width_value=self.root.winfo_screenwidth()
+        self.height_value=height
+        
+        # @todo Temporary hack to cope with my own multi-screen setup
+        if self.width_value < self.height_value:
+            self.height_value = self.width_value / 1.77
 
         lines = 25
 
         self.fontH=-round((-1+self.height_value/(lines+2)))#
         # self.ttxfont0 = Font(family='teletext2', size=round(self.fontH/2))
         self.ttxfont2 = Font(family='teletext2', size=round(self.fontH))
-        self.ttxfont4 = Font(family='teletext4', size=round(self.fontH*1.95))
+        self.ttxfont4 = Font(family='teletext4', size=round(self.fontH*2))
 
         # allow for side panel of up to 16 characters
         side=16
@@ -323,7 +328,7 @@ class TTXline:
 
                 if text_height == 'double':
                     textFont = self.ttxfont4
-                    print("line 325. It got here")
+                    #print("line 325. It got here")
                 else:
                     textFont = self.ttxfont2
                 self.text.tag_config(tag_id , font = textFont, foreground = fgc, background = bgc)
@@ -451,3 +456,18 @@ class TTXline:
         self.clearFlag = True
         # self.region = 0
         metaData.clear()
+        # I think I want to clear all the rows, but this breaks it
+        
+        str = self.text.get('1.0', 'end')
+        print(len(str))
+        self.text.delete('1.0')
+        self.textConceal.delete('1.0')
+        for row in range(1,24):
+            self.setLine(b'xx                                        ', row)    # 42!
+            
+#        self.text.delete('1.0')
+        #str = "                                        "
+        #str2 = str.encode(str)
+        
+        #self.setLine(str, 4)    
+        #self.setLine(b'0123456789012345678901234567890123456789\n', 4)    

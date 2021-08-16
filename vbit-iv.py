@@ -2,7 +2,7 @@
 
 # T42 Teletext Stream to In-vision decoder
 #
-# Copyright (c) 2020 Peter Kwan
+# Copyright (c) 2020-2021 Peter Kwan
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -188,7 +188,8 @@ def process(pkt):
     row = result[1]
     # If this is a header, decode the page
 
-    # If we hit a row that follows a header, skip the packet
+    # If we hit a row that follows a double height, skip the packet
+    # Deeply suspect that this is removing too many rows
     if elideRow>0 and elideRow == row:
         ttx.mainLoop()
         print("eliding row= " + str(elideRow))
@@ -275,10 +276,12 @@ try:
     # This thread reads the input stream into a field buffer
     while True:
         # load a field of 16 vbi lines
+        #print("x")
         for line in range(16):
             # packet=file.read(packetSize) # file based version
             # packet=sys.stdin.buffer.read(packetSize) # read binary from stdin
             process(sys.stdin.buffer.read(packetSize))
+            #print("y")
         # see if the keyboard has received a remote control code
         key = ttx.getKey()
         if key != ' ':
@@ -308,4 +311,4 @@ except Exception as inst:
     print(inst)
 
 finally:
-    print("clean up") 
+    print("vbit-iv clean up") 

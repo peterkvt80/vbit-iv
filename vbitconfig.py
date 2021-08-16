@@ -1,7 +1,7 @@
 # vbit-config.py
 # Reads vbit2 config to set up suitable launch command strings
 #
-# Copyright (c) 2020 Peter Kwan
+# Copyright (c) 2020-2021 Peter Kwan
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -34,11 +34,11 @@ class Config:
         
         # Read the config    
         f = open(self.CONFIG, 'r')
-        text = f.read()
+        self.text = f.read()
         # print(re.findall(r'#.*', text)) # Match comments
         
         # Read the source
-        source = re.findall(r'SELECTED="(.*)"', text)
+        source = re.findall(r'SELECTED="(.*)"', self.text)
         self.service = source[0]
         
         # Create the launch string. It should look something like this:
@@ -58,7 +58,7 @@ class Config:
         # INSTALLED=\( means look for a match starting INSTALLED=(
         # [\s\S.^)]* means match all whitespace and non whitespace except )
         # \) means match the closing bracket )
-        installed = re.search(r'INSTALLED=\([\s\S.^)]*\)', text)
+        installed = re.search(r'INSTALLED=\([\s\S.^)]*\)', self.text)
         # There should only be one match
         self.instr = installed.group(0)
         #print("installed = " + instr) #
