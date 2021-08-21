@@ -17,6 +17,7 @@ It may work on Windows if you use the Windows version of VBIT2 but you are on yo
 * Install VBIT2 as detailed in the Github project. Use vbit-config to add services and select one to display.
 * Download the ZIP and unpack it somewhere convenient. (Or clone it if you want to keep the code up to date)
 * Click on the font files and install them onto your system. These are teletext2.ttf and teletext4.ttf. For Raspberry Pi OS just copy them to the fonts folder. 
+* You also need to install screeninfo from PyPI. From Thonny you can just add it using the package manager. You can also download it and unpack it in the vbit-iv folder. If you don't install it then the code will run but without any graphics.
 
 # Running
 Move to your vbit-iv/ directory. There are a number of ways that you could run the code.
