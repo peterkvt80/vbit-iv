@@ -220,10 +220,10 @@ def process(pkt):
                     wasCapturing = False
                     print("[vbit-iv::process] Page load completed. rowCounter = " + str(rowCounter))
                     # Got rowCounter lines when we expected
-                    if rowCounter<24: # THIS DOESN'T WORK :-(
+                    #if rowCounter<24: # THIS DOESN'T WORK :-(
                         #for i in range(rowCounter+2, 24+2):
                             #print("[vbit-iv process] erase line " + str(i))
-                        ttx.printRow(b"QQxxxxxxxxxxyyyyyyyyyyzzzzzzzzzzkkkkkkkkkk", 24)
+                        #ttx.printRow(b"QQxxxxxxxxxxyyyyyyyyyyzzzzzzzzzzkkkkkkkkkk", 24)
             if seeking:
                 suppressHeader = False
                     
