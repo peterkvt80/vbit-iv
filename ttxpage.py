@@ -100,11 +100,12 @@ class TTXpage:
         b1 = (value & 0x08) >> 2
         b2 = (value & 0x20) >> 3
         b3 = (value & 0x80) >> 4
-        return b0+b1+b2+b3        
+        return b0+b1+b2+b3
     
+    # return True if the packet contained double height
     def printRow(self, packet, row):
         if row < 0 or row > 24 :
-            return false
+            return False
         return self.lines.printRow(packet, row)
 
     def printHeader(self, packet, page, seeking, suppress = False):

@@ -41,13 +41,15 @@ tail=0
 # decoder state
 currentMag=1#4
 currentPage=0x00#0x70
-capturing = False
+capturing = False # True while we are accepting rows for the selected page
+wasCapturing = False # True if last row was accepted. Used to detect when a page load is complete.
 elideRow = 0
 seeking = True # True while seeking a new page to display
 lastPacket = b"AB0123456789012345678901234567890123456789"
 holdMode = False
 subCode = 0 # The current page subcode
 lastSubcode = 0 # The previous carousel page subcode
+rowCounter = 0 # Rows count for this page so far, except for rows after Double Height
 
 suppressHeader = False
 
@@ -169,12 +171,14 @@ def remote(ch):
     #if seeking:
     #    ttx.clear()
 
-# \param pkt
+# \param pkt - raw T42 packet to process
 def process(pkt):
     global capturing
+    global wasCapturing
     global currentMag
     global currentPage
     global elideRow
+    global rowCounter # Counts the rows, except the rows following a double height row
     global lastPacket
     global seeking
     global holdMode
@@ -188,32 +192,38 @@ def process(pkt):
     row = result[1]
     # If this is a header, decode the page
 
-    # If we hit a row that follows a double height, skip the packet
-    # Deeply suspect that this is removing too many rows
-    if elideRow>0 and elideRow == row:
-        ttx.mainLoop()
-        print("eliding row= " + str(elideRow))
-        elideRow=0
-        return
     # only display things that are on our magazine
     if currentMag == mag: # assume parallel mode
-        if row == 0:
+        if row == 0: # Is this a header?
+            elideRow = 0 # new header, cancel any elide that might have happened
             if holdMode:
                 ttx.printHeader(lastPacket, "HOLD    ", False, False)
                 return
 #      print("\033[0;0fP", end='')
-            # is this the magazine that we want?
+            # is this the page that we want?
             page = decodePage(pkt)
             subcode = decodeSubcode(pkt) # Used to clear down page if changed. Also clears X26 char map
             # This is where we need to grab transmission flags @todo
             capturing = currentPage == page
             if capturing:
+                rowCounter = 0
                 seeking = False # Capture starts if this is the right page
                 lastPacket = pkt
                 suppressHeader = getC7(pkt)>0
                 if subcode != lastSubcode:
                     lastSubcode = subcode
                     ttx.clear()
+                wasCapturing = True
+            else:
+                # If we have fewer rows because of double height, we must blank the extra lines
+                if wasCapturing:
+                    wasCapturing = False
+                    print("[vbit-iv::process] Page load completed. rowCounter = " + str(rowCounter))
+                    # Got rowCounter lines when we expected
+                    if rowCounter<24: # THIS DOESN'T WORK :-(
+                        #for i in range(rowCounter+2, 24+2):
+                            #print("[vbit-iv process] erase line " + str(i))
+                        ttx.printRow(b"QQxxxxxxxxxxyyyyyyyyyyzzzzzzzzzzkkkkkkkkkk", 24)
             if seeking:
                 suppressHeader = False
                     
@@ -234,16 +244,25 @@ def process(pkt):
             #printRow(packet, 0, 0, "{:1d}{:02X}".format(mag,page))
             # print("\033[2J", end='') # clear screen
                 #printRow(packet)
-        else:
+        else: # not a header
             #print("TRACE GA")
+            # If we hit a row that follows a double height, skip the packet
+            # Deeply suspect that this is removing too many rows
+            if elideRow>0 and elideRow == row:
+                ttx.mainLoop()
+                print("[vbit-iv]eliding row= " + str(elideRow) + " rowCounter = " + str(rowCounter))
+                elideRow=0
+                return
+
 
         # @todo Need to copy all pages until a new header arrives
             if capturing:
                 if row < 25:
                     #dump(pkt, row)
-                    if ttx.printRow(pkt, row): # double height?
-                        print("row = " + str(row) + " row length ="+ str(len(pkt)))
-                        elideRow = row+1
+                    if ttx.printRow(pkt, row): # printable row. Is it double height?
+                        elideRow = row + 1
+                    rowCounter = rowCounter + 1 # increment the printed row count
+                    # print("[vbit-iv] row = " + str(row) + " row length ="+ str(len(pkt)))
                 if row == 26:
                     # ttx.decodeRow26(pkt) # @todo TO BE REPLACED
                     print("process packet26 called")

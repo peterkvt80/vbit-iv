@@ -65,7 +65,7 @@ class TTXline:
         self.textConceal = Text(self.root, width = 40+side, height = lines) # Copy of text but with reveals hidden
 
         # Most of these options are failed attempts to remove the single pixel lines
-        self.text.config(borderwidth=0, foreground='white', background='black', font=self.ttxfont2, padx=0, pady=0, autoseparators=0, highlightbackground='black')
+        self.text.config(borderwidth=0, foreground='white', background='black', font=self.ttxfont2, padx=0, pady=0, autoseparators=0, highlightbackground='black', spacing1=0, spacing2=0, spacing3=-1)
         self.textConceal.config(borderwidth=0, foreground='white', background='black', font=self.ttxfont2, padx=0, pady=0, autoseparators=0, highlightbackground='black')
 
         for i in range(24):
@@ -463,7 +463,7 @@ class TTXline:
         self.text.delete('1.0')
         self.textConceal.delete('1.0')
         for row in range(1,24):
-            self.setLine(b'xx                                        ', row)    # 42!
+            self.setLine(b'xxC         O         E         C         ', row)    # 42!
             
 #        self.text.delete('1.0')
         #str = "                                        "
