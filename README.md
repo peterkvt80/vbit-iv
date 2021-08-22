@@ -15,22 +15,24 @@ Requirements: Linux operating system. Tested with Ubuntu and Raspberry Pi OS. Py
 It may work on Windows if you use the Windows version of VBIT2 but you are on your own!
 
 * Install VBIT2 as detailed in the Github project. Use vbit-config to add services and select one to display.
-* Download the ZIP and unpack it somewhere convenient. (Or clone it if you want to keep the code up to date)
+* Download the vbit-iv ZIP and unpack it somewhere convenient OR better still, clone it if you want to keep the code up to date.
 * Click on the font files and install them onto your system. These are teletext2.ttf and teletext4.ttf. For Raspberry Pi OS just copy them to the fonts folder. 
-* You also need to install screeninfo from PyPI. From Thonny you can just add it using the package manager. You can also download it and unpack it in the vbit-iv folder. If you don't install it then the code will run but without any graphics.
+* You also need to install screeninfo from PyPI using a python package manager or type
+    
+    pip3 install screeninfo
 
 # Running
 Move to your vbit-iv/ directory. There are a number of ways that you could run the code.
 ## Python
 The easiest method is to run the in-vision script as this starts everything and starts the vbit2 configured service.
 
-./innervision.py
+    ./innervision.py
 
 You can type commands directly onto the teletext page, or into the shell that you launched the program from. In the case of the shell, it sends the comands through the remote control port so you can't attach another remote control client to it.
 
 To change the service, use the vbit configuration utility. You can manages services here including adding, selecting and updating. Don't use the Start VBIT2 option as the in vision viewer doesn't need it.
 
-vbit-config
+    vbit-config
 
 ## Command line
 $HOME/vbit2/vbit2 --dir $HOME/.teletext-services/Teefax | ./vbit-iv.py 1 0
@@ -71,3 +73,10 @@ Run the remote control with
     ./pft.py  
 
 You can write your own remote control, for controlling vbit-iv. It only takes a little bit of Python coding. Some ideas for you: A voice activated page selector. A carousel of the last ten updated pages. A default page reset. The system always returns to the same page every five minutes, so people can browse but it resets. Any more ideas?
+    
+# FLIRC
+FLIRC stands for Linux Infra Red Control. I'd rather not say what the F stands for. FLIRC is a tiny USB receiver that picks up infra red commands and converts them into keyboard key presses. So for example, you can program the Reveal button on your remote control so that it generates an "r" key press.
+    
+It is a really great if a bit pricey device once you have it set up. However, the setup software is a bad experience all round. Once you have the software installed and running you can program your FLIRC. Choose the full keyboard option and programme the keys listed in the *Commands* section with your remote control.
+    
+Fortunately you only need to do this once for when the keys are programmed, you can move the FLIRC to any PC, laptop, Raspberry Pi or whatever you've got that can be controlled by a USB keyboard.
