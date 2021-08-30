@@ -1,0 +1,15 @@
+#!/bin/sh
+# Displays a teletext service from a folder containing tti files.
+# It is most useful for running a service that isn't in vbit-config.
+# This is either because it doesn't have a repo associated with it
+# or it is a purely local service.
+
+# You must configure these file locations to match your installation.
+# Parameter - The name of your service in the service folder - eg. artfax
+# The VBIT2 stream generator executable - Wherever vbit2 was installed
+VBIT2="/home/pi/vbit2/vbit2"
+# The folder containing your teletext services - eg. /home/pi/Document/service/
+SERVICE="/home/pi/Documents/service/"
+# The vbit=iv.py executable
+VBITIV="/home/pi/vbit2/vbit-iv/vbit-iv.py"
+$VBIT2 --dir $SERVICE$1/ | $VBITIV 1 0

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Encoding=UTF-8
+Name= Artfax
+Exec=/home/pi/ttx artfax
+Icon=/home/pi/Pictures/palm_tree_icon32.png
+StartUpNotify=true
+Terminal=true

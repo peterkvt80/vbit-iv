@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Encoding=UTF-8
+Name= BBC 1980
+Exec=/home/pi/ttx bbc1980
+Icon=/home/pi/Pictures/palm_tree_icon32.png
+StartUpNotify=true
+Terminal=false
+

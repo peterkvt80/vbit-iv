@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Encoding=UTF-8
+Name= Turner
+Exec=/home/pi/ttx turner
+Icon=/home/pi/Pictures/palm_tree_icon32.png
+StartUpNotify=true
+Terminal=false
+

@@ -1,0 +1,5 @@
+#!/bin/sh
+# Run the current serive
+
+cd /home/pi/vbit2/vbit-iv
+./innervision.py &
