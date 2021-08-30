@@ -287,4 +287,4 @@ class TTXpage:
                     
     # Set a flag to clear down when starting the next page                    
     def clear(self):
-        self.lines.clear()
+        self.lines.clear("new page")

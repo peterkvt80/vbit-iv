@@ -129,7 +129,7 @@ def remote(ch):
         currentPage = ttx.getPage(0)
         print(str(currentMag) + " " + hex(currentPage))
         seeking = True
-        ttx.clear()
+        ttx.clear() # Doubt we want to do this!
         return
     if ch == 'Q'  or ch == 'i': # f2: green link
         currentMag = ttx.getMag(1)

@@ -388,6 +388,8 @@ class TTXline:
             self.found = False
         else:
             if not self.found:
+                #print("[ttxline::printHeader] Calling clear")
+                #self.clear("new header")
                 self.currentHeader = buf # The whole header is updating
                 self.found = True
                 self.revealMode = False # New page starts with concealed text
@@ -396,8 +398,6 @@ class TTXline:
                 # for tag in self.text.tag_names(): # This clears all tags BUT only when moving to a new page
                 #     self.text.tag_delete(tag)
                 self.decodeFlags(packet)
-                print("[printHeader]Is this where we run clear?") # yes it is. However, we ALSO want to run it
-                self.clear()
                 
             #if not self.pageLoaded:
             #    self.pageLoaded = True
@@ -452,18 +452,20 @@ class TTXline:
         self.text.config(state = DISABLED)
 
     # Clear stuff including all the page modifiers
-    def clear(self):
+    def clear(self, reason):
         self.clearFlag = True
         # self.region = 0
-        metaData.clear()
+        #metaData.clear()
         # I think I want to clear all the rows, but this breaks it
         
-        str = self.text.get('1.0', 'end')
-        print(len(str))
-        self.text.delete('1.0')
-        self.textConceal.delete('1.0')
+        s = self.text.get('1.0', 'end')
+        print("deleting lines. char count = "+str(len(s)) + " reason = " + reason)
+        self.text.delete('1.0', 'end')
+        self.textConceal.delete('1.0', 'end')
+        # not sure this will work with side panels
         for row in range(1,24):
-            self.setLine(b'xxC         O         E         C         ', row)    # 42!
+            self.text.insert(END, "                                           \n") # 42 characters
+            self.textConceal.insert(END, "                                          \n")
             
 #        self.text.delete('1.0')
         #str = "                                        "
