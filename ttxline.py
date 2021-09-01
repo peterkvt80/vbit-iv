@@ -455,7 +455,7 @@ class TTXline:
     def clear(self, reason):
         self.clearFlag = True
         # self.region = 0
-        #metaData.clear()
+        metaData.clear()
         # I think I want to clear all the rows, but this breaks it
         
         s = self.text.get('1.0', 'end')
