@@ -161,13 +161,13 @@ class TTXpage:
     def onKeyPress(self, event):
         self.buffer.append(event.char)
         if event.char!='':
-            print("You pressed " + str(ord(event.char)))
+            print("[ttxPage::onKeyPress] You pressed " + str(ord(event.char)))
         
     def getKey(self):
         if self.buffer:
             key = self.buffer.pop(0)
             if key != '':
-                print("key == " + str(ord(key)))
+                print("[ttxPage::getKey] key == " + str(ord(key)))
                 if key == 105: # Mappings F1
                     key = 'P'
                 return key

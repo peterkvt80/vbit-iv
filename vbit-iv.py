@@ -122,7 +122,7 @@ def remote(ch):
     if ch == 'r': # reveal-oh
         ttx.toggleReveal()
         return
-    if ch == 'q' or ord(ch) == 3: # quit
+    if ch == 'q' or ord(ch) == 27: # quit
         exit()
     if ch == 'P' or ch == 'u': # f1 red link
         currentMag = ttx.getMag(0)
@@ -166,7 +166,7 @@ def remote(ch):
     if ch=='d':
         metaData.dump()
     else:
-        print("Unhandled remote code: " + ch)
+        print("[vbit-iv] Unhandled remote code: " + ch)
         # @todo Reveal, Fastext, Hold, Double height, Page up, Page Down, Mix
     #if seeking:
     #    ttx.clear()
@@ -187,6 +187,9 @@ def process(pkt):
     global clut
     global suppressHeader
 
+    if len(pkt) < 42: # Quit if we don't have a full packet
+        print("invalid teletext packet")
+        exit()
     result = mrag(pkt[0], pkt[1])
     mag = result[0]
     row = result[1]
@@ -298,13 +301,16 @@ try:
         #print("x")
         for line in range(16):
             # packet=file.read(packetSize) # file based version
-            # packet=sys.stdin.buffer.read(packetSize) # read binary from stdin
-            process(sys.stdin.buffer.read(packetSize))
+            packet=sys.stdin.buffer.read(packetSize) # read binary from stdin
+            if len(packet)<42:
+                print ("No source data. (Check vbit2 and the configured teletext service)")
+            else:
+                process(packet)
             #print("y")
         # see if the keyboard has received a remote control code
         key = ttx.getKey()
         if key != ' ':
-            if key == 'q':
+            if key == 'q' or key == 27:
                 exit()
             remote(key)
         time.sleep(0.020) # 20ms between fields
@@ -323,11 +329,11 @@ try:
 except KeyboardInterrupt: # If CTRL+C is pressed, exit cleanly:
     print("Keyboard interrupt")
 
-except Exception as inst:
-    print("vbit-iv error")
-    print(type(inst))
-    print(inst.args)
-    print(inst)
+# except Exception as inst:
+    # print("vbit-iv error")
+    # print(type(inst))
+    # print(inst.args)
+    # print(inst)
 
 finally:
     print("vbit-iv clean up") 

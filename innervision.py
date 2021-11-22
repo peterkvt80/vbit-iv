@@ -53,8 +53,8 @@ try:
     #  main loop. Get character, send request to vbit-iv
     ch = '?'
     while True:
-        ch = readchar.readchar()
-        if ord(ch) == 3 or ch == 'q':
+        ch = readchar.readchar()        
+        if ord(ch) == 27 or ch == 'q': # quit with q or escape
             socket.send_string(ch)
             exit()
         #print("Sending request " + str(ord(ch))) #str(key))
@@ -65,14 +65,14 @@ try:
         #print("Received reply" + str(message[0]))
         
           
-except KeyboardInterrupt: # If CTRL+C is pressed, exit cleanly:
-    print("Innervision Keyboard interrupt")    
-
-except Exception as inst:
-    print("some innervision error") 
-    print(type(inst)) 
-    print(inst.args) 
-    print(inst) 
+#except KeyboardInterrupt: # If CTRL+C is pressed, exit cleanly:
+#    print("Innervision Keyboard interrupt")    
+#
+#except Exception as inst:
+#    print("some innervision error") 
+    #print(type(inst)) 
+    #print(inst.args) 
+    #print(inst) 
 
 finally:
     print("iv clean up")           
