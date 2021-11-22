@@ -11,6 +11,10 @@ A network server listens for remote control commands so you can select pages by 
 
 # Installation
 
+Head on over to the Wiki page https://github.com/peterkvt80/vbit-iv/wiki for current instructions.
+
+Below are older instructions.
+
 Requirements: Linux operating system. Tested with Ubuntu and Raspberry Pi OS. Python 3. <List of Python modules to add like zmq> VBIT2 teletext streamer.
 It may work on Windows if you use the Windows version of VBIT2 but you are on your own!
 
