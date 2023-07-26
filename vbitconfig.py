@@ -22,65 +22,38 @@
 # SOFTWARE.
 
 from pathlib import Path
-import re
-
+import json
 class Config:
     def __init__(self):
         # Get the sources
         self.HOME = str(Path.home())
         self.KNOWN = self.HOME + "/vbit2/known_services"
         self.SERVICESDIR = self.HOME+ "/.teletext-services"
-        self.CONFIG = self.SERVICESDIR + "/config"
+        self.CONFIG = self.SERVICESDIR + "/config.json"
+        with open(self.CONFIG, 'r') as f:
+          config_data = json.load(f)
+
+        # Output: {'name': 'Bob', 'languages': ['English', 'French']}
+        #print(data)
+        service_name = config_data['settings']['selected'] # eg. Ceefax (London)
+        #service = look for service_name in config_data installed
+        service_data = list(filter(lambda x:x['name']==service_name, config_data['installed']))
+        print (service_data)
         
-        # Read the config    
-        f = open(self.CONFIG, 'r')
-        self.text = f.read()
-        # print(re.findall(r'#.*', text)) # Match comments
+        self.service = service_name
         
-        # Read the source
-        source = re.findall(r'SELECTED="(.*)"', self.text)
-        self.service = source[0]
+        path = service_data[0]['path']
         
         # Create the launch string. It should look something like this:
         # /home/peterk/vbit2/vbit2 --dir /home/peterk/.teletext-services/Teefax | ./vbit-iv.py 1 0
         streamer = self.HOME + '/vbit2/vbit2 ' # Run vbit ...
-        service = ' --dir ' + self.HOME + '/.teletext-services/' + self.service # using this service ...
+        service = ' --dir ' + path # using this service ...
         render = 'vbit-iv.py 1 0' # into a renderer
         self.launch = streamer + service + ' | ./' + render # Complete launch string with stream piped out for rendering
-        
+
         self.service_stream = streamer + service # Launch only the streamer without rendering
         self.render = './' + render # Execute the render option
 
-        # Extract the installs option
-        # How to get an argument list from an Alistair Cree configuration file:
-        # break it down: r'INSTALLED=\([\s\S.^)]*\)'
-        # r means raw string
-        # INSTALLED=\( means look for a match starting INSTALLED=(
-        # [\s\S.^)]* means match all whitespace and non whitespace except )
-        # \) means match the closing bracket )
-        installed = re.search(r'INSTALLED=\([\s\S.^)]*\)', self.text)
-        # There should only be one match
-        self.instr = installed.group(0)
-        #print("installed = " + instr) #
-
 # What is our current source?
-    
-#!/bin/bash
-# This file was created automatically by vbit-config.
-#INSTALLED=(
-#  "Ceefax,/home/peterk/.teletext-services/Ceefax,,svn"
-#  "Ceefax (South West),/home/peterk/.teletext-services/Ceefax/regional,Ceefax,svn"
-#  "Chunkytext,/home/peterk/.teletext-services/Chunkytext,,git"
-#  "SPARK,/home/peterk/.teletext-services/SPARK,,git"
-#  "Teefax,/home/peterk/.teletext-services/Teefax,,svn"
-#)
-#
-#SELECTED="SPARK"
-    
-    
-    #print("Home = " + HOME)
-    #print("KNOWN = " + KNOWN)
-    #print("SERVICESDIR = " + SERVICESDIR)
-    #print("CONFIG = " + CONFIG)
     
 #c = Config()
