@@ -58,7 +58,7 @@ The viewer has a network remote control on port 7777. vbit-remote.py is a suitab
 
     ./vbit-remote.py
   
-Another remote control is "Pages from Teefax". This sequences a series of pages. First create a file caled pft.config. Each line is a three digit page number, a space and then a timing. The example below shows all of the BBC news pages in Teefax. Note that the units of the page number can be replaced by a wildcard to display all the pages (in this case) 110 to 119
+Another remote control is "Pages from Teefax". This sequences a series of pages. First create a file called pft.config. Each line is a three digit page number, a space and then a timing. The example below shows all of the BBC news pages in Teefax. Note that the units of the page number can be replaced by a wildcard to display all the pages (in this case) 110 to 119
   
     104 20
     105 20
