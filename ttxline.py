@@ -2,7 +2,7 @@
 
 # Teletext Stream to Invision decoder
 #
-# Copyright (c) 2020-2021 Peter Kwan
+# Copyright (c) 2020-2026 Peter Kwan
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -54,7 +54,7 @@ class TTXline:
     :ivar text: The primary text widget for displaying teletext content.
     :type text: tkinter.Text
     :ivar textConceal: A secondary text widget for managing concealed or hidden text.
-    :type textConceal: tkinter.Text
+    :type text: tkinter.Text
     :ivar width_value: The screen width of the environment in which the application runs.
     :type width_value: int
     :ivar height_value: The height of the teletext lines or application window.
@@ -129,12 +129,18 @@ class TTXline:
         self.ttxfont2 = Font(family="teletext2", size=round(self.fontH))
         self.ttxfont4 = Font(family="teletext4", size=round(self.fontH * 2))
 
-        total_columns = self.TEXT_COLUMNS + self.SIDE_PANEL_COLUMNS
-        self.text = Text(self.root, width=total_columns, height=self.DISPLAY_LINES)  # The normal text
-        self.textConceal = Text(self.root, width=total_columns, height=self.DISPLAY_LINES)  # Concealed copy
+        self.total_columns = self.TEXT_COLUMNS + self.SIDE_PANEL_COLUMNS
+
+        self.text = Text(self.root, width=self.total_columns, height=self.DISPLAY_LINES)  # The normal text
+        self.textConceal = Text(self.root, width=self.total_columns, height=self.DISPLAY_LINES)  # Concealed copy
 
         self._configure_text_widgets()
+
+        # Build blank rows that actually match the configured width (prevents odd indexing behaviour)
+        self._blank_row = (" " * self.total_columns) + "\n"
+
         self._populate_initial_buffer()
+        self._ensure_rows_exist()
 
         self.rowOffset = 0  # Used to elide double height lines
         self.pageLoaded = False
@@ -149,6 +155,50 @@ class TTXline:
         self.natOpt = 0  # 0=EN, 1=FR, 2=SW/FI/HU, 3=CZ/SK, 4=DE, 5=PT/SP, 6=IT, 7=N/A
         self.clearFlag = False  # Set by clear(), cleared by printHeader()
         self.offsetSplit = 8  # Where the side panels are split (0..16, default 8)
+
+    def _ensure_rows_exist(self) -> None:
+        """
+        Ensure both Text widgets contain at least DISPLAY_LINES + 1 lines.
+
+        Note: tkinter.Text always maintains a trailing newline / extra line.
+        If we insert DISPLAY_LINES rows with '\n', we end up with DISPLAY_LINES + 1 lines.
+        """
+        def line_count(widget: Text) -> int:
+            end_line = int(widget.index("end").split(".")[0])
+            return max(0, end_line - 1)
+
+        def append_blank_lines(widget: Text, n: int) -> None:
+            if n <= 0:
+                return
+            blank = (" " * self.total_columns) + "\n"
+            widget.insert(END, blank * n)
+
+        want = self.DISPLAY_LINES + 1
+
+        have = line_count(self.text)
+        if have < want:
+            append_blank_lines(self.text, want - have)
+
+        have_c = line_count(self.textConceal)
+        if have_c < want:
+            append_blank_lines(self.textConceal, want - have_c)
+
+    def _replace_row_text(self, widget: Text, row0: int, text: str) -> None:
+        """
+        Replace a single row's content with fixed-width text without deleting the newline.
+
+        row0 is 0-based: row0=0 -> Text line 1.
+        """
+        self._ensure_rows_exist()
+
+        line1 = row0 + 1
+        start = f"{line1}.0"
+        end = f"{line1}.{self.total_columns}"
+
+        fixed = (text[: self.total_columns]).ljust(self.total_columns, " ")
+
+        widget.delete(start, end)
+        widget.insert(start, fixed)
 
     def _configure_text_widgets(self) -> None:
         """Apply a consistent look-and-feel to both Text widgets."""
@@ -172,12 +222,11 @@ class TTXline:
                 self.text.insert(END, self._SPLASH_ROW_TEXT)
                 self.textConceal.insert(END, self._SPLASH_ROW_TEXT)
                 self.text.tag_add(self._SPLASH_TAG, "12.0", "12.end")
-                self.text.tag_config(
-                    self._SPLASH_TAG, font=self.ttxfont4, offset=0, foreground="orange"
-                )  # double height
+                self.text.tag_config(self._SPLASH_TAG, font=self.ttxfont4, offset=0, foreground="orange")
             else:
-                self.text.insert(END, self._BLANK_ROW)
-                self.textConceal.insert(END, self._BLANK_ROW)
+                # Use width-correct blank row (not the old 40-column constant)
+                self.text.insert(END, self._blank_row)
+                self.textConceal.insert(END, self._blank_row)
 
     # true if while in graphics mode, it is a mosaic character. False if control or upper case alpha
     def isMosaic(self, ch):
@@ -202,26 +251,29 @@ class TTXline:
     # @param packet : packet to write
     # @param row : row number to write (starting from 0)
     def setLine(self, pkt, row):
-        #print('[setLine] ENTERS')
-        # It has two phases
-        # 1) Place all the characters on the line
-        # 2) Set their attributes: colour and font size
+        # ... existing code ...
         if row == 2:
             self.dump(pkt)
 
-        rstr, tag_start, tag_end = self._row_index_range(row)
+        # Keep rows stable
+        self._ensure_rows_exist()
+        if row < 0 or row >= self.DISPLAY_LINES:
+            return False
+
+        rstr = str(row + 1) + "."
+        tag_start = str(rstr + "0")
+        tag_end = str(rstr + "end")
 
         # wsfn remove this for testing
         for tag in self.text.tag_names():  # erase the line attributes
             attr = tag.split("-")
             if attr[0] == str(row + 1):
-                #print('deleting tag = ' + tag)
                 self.text.tag_delete(tag)
                 self.textConceal.tag_delete(tag)
 
-        # erase the line
-        self.text.delete(tag_start, tag_end)  # erase the line
-        self.textConceal.delete(tag_start, tag_end)
+        # Instead of deleting the whole line (which can remove blank rows), overwrite it safely
+        self._replace_row_text(self.text, row, " " * self.total_columns)
+        self._replace_row_text(self.textConceal, row, " " * self.total_columns)
 
         # Set the conditions at the start of the line
         graphicsMode = False
@@ -234,124 +286,8 @@ class TTXline:
 
         lastMosaicChar = " "
 
-        self.text.insert(tag_start, "        ")  # This could be a big mistake
-        self.text.insert(tag_start, "        ")
-
-        # PASS 1: put the characters in.
-        # ... existing code ...
-
-    def __init__(self, root_param, height=360):
-        # this is where we define a Text object and set it up
-        self.root = root_param
-        self.text = Text(self.root)
-
-        # establish the maximum font size required to fill the available space
-        # what is the window height?
-        self.width_value=self.root.winfo_screenwidth()
-        self.height_value=height
-
-        # @todo Temporary hack to cope with my own multi-screen setup
-        if self.width_value < self.height_value:
-            self.height_value = self.width_value / 1.77
-
-        lines = 25
-
-        self.fontH=-round((-1+self.height_value/(lines+2)))#
-        # self.ttxfont0 = Font(family='teletext2', size=round(self.fontH/2))
-        self.ttxfont2 = Font(family='teletext2', size=round(self.fontH))
-        self.ttxfont4 = Font(family='teletext4', size=round(self.fontH*2))
-
-        # allow for side panel of up to 16 characters
-        side=16
-        self.text = Text(self.root, width = 40+side, height = lines) # The normal text
-        self.textConceal = Text(self.root, width = 40+side, height = lines) # Copy of text but with reveals hidden
-
-        # Most of these options are failed attempts to remove the single pixel lines
-        self.text.config(borderwidth=0, foreground='white', background='black', font=self.ttxfont2, padx=0, pady=0, autoseparators=0, highlightbackground='black', spacing1=0, spacing2=0, spacing3=-1)
-        self.textConceal.config(borderwidth=0, foreground='white', background='black', font=self.ttxfont2, padx=0, pady=0, autoseparators=0, highlightbackground='black')
-
-        for i in range(24):
-            if i==11:
-                self.text.insert(END, "     VBIT IN-VISION                     \n")
-                self.textConceal.insert(END, "     VBIT IN-VISION                     \n")
-                tag_id = "dbl"
-                self.text.tag_add(tag_id, "12.0", '12.end')
-                self.text.tag_config(tag_id, font=self.ttxfont4, offset=0, foreground = 'orange') # double height
-            else:
-                self.text.insert(END, "                                        \n")
-                self.textConceal.insert(END, "                                        \n")
-        #self.text.tag_add("all", "1.0", END) # test to delete
-        #self.text.tag_config("all", spacing2 = 10) # test to delete
-
-        self.rowOffset = 0 # Used to elide double height lines
-
-        self.pageLoaded = False
-        self.found = False
-        self.currentHeader = bytearray()
-        self.currentHeader.extend(b'YZ0123456789012345678901234567890123456789') # header of the page that is being displayed
-
-        self.revealMode = False # hidden
-
-        # header flags
-        self.natOpt = 0 # 0=EN, 1=FR, 2=SW/FI/HU, 3=CZ/SK, 4=DE, 5=PT/SP, 6=IT, 7=N/A
-        # self.region = 0 # National option selection bits in X/28/0 format 1. Used by RE in tti files.
-
-        self.clearFlag = False # Set by clear(), cleared by printHeader()
-
-        self.offsetSplit = 8 # Where the side panels are split (0..16, default 8)
-
-    # true if while in graphics mode, it is a mosaic character. False if control or upper case alpha
-    def isMosaic(self, ch):
-        return ch & 0x20; # Bit 6 set?
-
-    def dump(self, pkt):
-        return
-        print("Dumping row")
-        for i in range(len(pkt)):
-            print(str(i)+' '+pkt.hex())
-
-    # clear and replace the line contents
-    # @param packet : packet to write
-    # @param row : row number to write (starting from 0)
-    def setLine(self, pkt, row):
-        #print('[setLine] ENTERS')
-        # It has two phases
-        # 1) Place all the characters on the line
-        # 2) Set their attributes: colour and font size
-        if row==2:
-            self.dump(pkt)
-
-
-        rstr = str(row + 1) + "." # The row string. First Text row is 1
-        tag_start=str(rstr +"0")
-        tag_end=str(rstr +"end")
-
-        # wsfn remove this for testing
-        for tag in self.text.tag_names(): # erase the line attributes
-            attr = tag.split('-')
-            if attr[0] == str(row+1):
-                #print('deleting tag = ' + tag)
-                self.text.tag_delete(tag)
-                self.textConceal.tag_delete(tag)
-        #print ("[setLine]row = "+str(row))
-        # erase the line
-        self.text.delete(tag_start, tag_end ) # erase the line
-        self.textConceal.delete(tag_start, tag_end )
-
-
-        # Set the conditions at the start of the line
-        graphicsMode = False
-        hasDoubleHeight = False
-        holdChar = 0x00
-        holdMode  = False
-        contiguous = True
-        concealed = False
-        flashMode = False # @todo
-
-        lastMosaicChar = ' '
-
-        self.text.insert(tag_start, "        ") # This could be a big mistake
-        self.text.insert(tag_start, "        ")
+        #self.text.insert(tag_start, "        ") # This could be a big mistake
+        #self.text.insert(tag_start, "        ")
 
         # PASS 1: put the characters in. Selects glyphs for alpha, contiguous gfx, separated gxf
         #print('[setLine] rendering row ' + str(row))
@@ -400,10 +336,20 @@ class TTXline:
                 else:
                     ch = mapchar(ch, self.natOpt , metaData.getRegion()) # text in alpha mode @todo implement group number
                     ch = mapdiacritical(ch, row, i, metaData.X26CharMappings)
-            # Add the character, unless it is hidden
-            self.text.insert(rstr+str(i+self.offsetSplit), ch if not concealed else ' ')
-            # Keep the concealed characters only
-            self.textConceal.insert(rstr+str(i+self.offsetSplit), ch if concealed else ' ') # Save the characters that ARE concealed
+
+            # Overwrite (do not insert): inserting shifts the line and can corrupt alignment over time
+            col = i + self.offsetSplit
+            pos0 = f"{rstr}{col}"
+            pos1 = f"{rstr}{col + 1}"
+
+            out_ch = ch if not concealed else ' '
+            self.text.delete(pos0, pos1)
+            self.text.insert(pos0, out_ch)
+
+            conceal_ch = ch if concealed else ' '
+            self.textConceal.delete(pos0, pos1)
+            self.textConceal.insert(pos0, conceal_ch)
+
             # set-after
             if c == 0x1f: # release graphics - set after
                 holdMode = False
@@ -549,14 +495,18 @@ class TTXline:
     def printHeader(self, packet, page = "Header..", seeking = False, suppressHeader = False):
         if self.clearFlag:
             self.clearFlag = False
+
         lines = self.text.index(END)
-        line = lines.split('.')[0]
-        if int(line)>26:
-            print("[printHeader] " + str(line) + " Too many lines. Some bug somewhere!")
-        self.text.config(state = NORMAL) # allow editing
-        buf = bytearray(packet) # convert to bytearray so we can modify it
+        line = int(lines.split(".")[0])
+
+        # 'end' points one line beyond the last character; allow DISPLAY_LINES + 2 safely.
+        # (DISPLAY_LINES+1 real lines => end is at (DISPLAY_LINES+2).0)
+        if line > (self.DISPLAY_LINES + 2):
+            print(f"[printHeader] {line} Too many lines. Some bug somewhere!")
+
+        self.text.config(state=NORMAL)
+        buf = bytearray(packet)  # convert to bytearray so we can modify it
         if suppressHeader:
-            self.clear
             for i in range(42): # blank out the header bytes
                 buf[i]=0x00
             print("SUPPRESS HEADER!")
@@ -648,22 +598,14 @@ class TTXline:
     # Clear stuff including all the page modifiers
     def clear(self, reason):
         self.clearFlag = True
-        # self.region = 0
         metaData.clear()
-        # I think I want to clear all the rows, but this breaks it
 
-        s = self.text.get('1.0', 'end')
-        print("deleting lines. char count = "+str(len(s)) + " reason = " + reason)
-        self.text.delete('1.0', 'end')
-        self.textConceal.delete('1.0', 'end')
-        # not sure this will work with side panels
-        for row in range(1,24):
-            self.text.insert(END, "                                           \n") # 42 characters
-            self.textConceal.insert(END, "                                          \n")
+        # Do NOT delete all widget content; that destroys the row structure.
+        self.text.config(state=NORMAL)
 
-#        self.text.delete('1.0')
-        #str = "                                        "
-        #str2 = str.encode(str)
+        self._ensure_rows_exist()
+        for row0 in range(self.DISPLAY_LINES):
+            self._replace_row_text(self.text, row0, " " * self.total_columns)
+            self._replace_row_text(self.textConceal, row0, " " * self.total_columns)
 
-        #self.setLine(str, 4)
-        #self.setLine(b'0123456789012345678901234567890123456789\n', 4)
+        self.text.config(state=DISABLED)
