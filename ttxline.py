@@ -24,19 +24,221 @@
 
 from tkinter import Text, END, NORMAL, DISABLED
 from tkinter.font import Font
+
+from clut import clut
 from mapper import mapchar, mapdiacritical
-from clut import clut, Clut
-from packet import Packet, metaData
+from packet import metaData
+
+
+def deham(value):
+    """Decode a Hamming(8,4) nibble with no parity/error correction."""
+    bit0 = (value & 0x02) >> 1
+    bit1 = (value & 0x08) >> 2
+    bit2 = (value & 0x20) >> 3
+    bit3 = (value & 0x80) >> 4
+    return bit0 + bit1 + bit2 + bit3
+
 
 class TTXline:
-    print("TTXLine created")
+    """
+    Represents a class for managing and displaying a teletext line.
+
+    The `TTXline` class handles the structure and layout of teletext-based text
+    components within a GUI application. It includes features such as font
+    management, row and line manipulation for teletext pages, and basic rules for
+    graphics and mosaic rendering. The class can also manage additional states like
+    concealed text, double-height rows, and side panels for specialized components.
+
+    :ivar root: The root GUI component to which the teletext elements are attached.
+    :type root: Any
+    :ivar text: The primary text widget for displaying teletext content.
+    :type text: tkinter.Text
+    :ivar textConceal: A secondary text widget for managing concealed or hidden text.
+    :type textConceal: tkinter.Text
+    :ivar width_value: The screen width of the environment in which the application runs.
+    :type width_value: int
+    :ivar height_value: The height of the teletext lines or application window.
+    :type height_value: int
+    :ivar fontH: The font height calculated dynamically based on screen dimensions.
+    :type fontH: int
+    :ivar ttxfont2: Font used for standard teletext rows.
+    :type ttxfont2: tkinter.font.Font
+    :ivar ttxfont4: Font used for double-height teletext rows.
+    :type ttxfont4: tkinter.font.Font
+    :ivar rowOffset: Offset used for managing the height of rows with special properties like double-height.
+    :type rowOffset: int
+    :ivar pageLoaded: Indicates whether a teletext page has been successfully loaded.
+    :type pageLoaded: bool
+    :ivar found: Indicates certain processing states for teletext content.
+    :type found: bool
+    :ivar currentHeader: The header of the currently displayed teletext page, stored as a byte array.
+    :type currentHeader: bytearray
+    :ivar revealMode: Indicates if the concealed text is currently revealed.
+    :type revealMode: bool
+    :ivar natOpt: National option code for teletext regional settings.
+    :type natOpt: int
+    :ivar clearFlag: Denotes whether the teletext page is cleared or marked for clearing.
+    :type clearFlag: bool
+    :ivar offsetSplit: Specifies the split index for side panels within the teletext display.
+    :type offsetSplit: int
+    """
 
     # Map a teletext colour number to an actual colour
     # The CLUT needs to be chosen according to X26 settings so this isn't good enough
     # Probably also needs to go to CLUT instead of being in here
-    def getcolour(self, c):
-        global clut
-        return clut.clut0[c]
+
+    # Teletext layout constants
+    TEXT_COLUMNS = 40
+    DISPLAY_LINES = 25 # 0 row is the header, 23 lines on page, 1 for fastext
+    SIDE_PANEL_COLUMNS = 16
+
+    # Initial filler lines (kept as-is, but named)
+    _BLANK_ROW = "                                        \n"
+    _SPLASH_ROW_INDEX = 11
+    _SPLASH_ROW_TEXT = "     VBIT IN-VISION                     \n"
+    _SPLASH_TAG = "dbl"
+
+    def get_colour(self, colour_index: int):
+        """Return the colour value for a teletext colour index."""
+        return clut.clut0[colour_index % 8]
+
+    def __init__(self, root_param, height=360):
+        """
+        Initializes a teletext display object that handles the rendering of text onto
+        a tkinter Text widget, applying specific configurations for font size,
+        multi-screen setup, and concealed text.
+
+        :param root_param: The tkinter root or parent widget where the text will
+            be displayed.
+        :param height: Screen height to be used for text rendering. Defaults to 360.
+        """
+        print("TTXLine created")
+
+        # this is where we define a Text object and set it up
+        self.root = root_param
+
+        # establish the maximum font size required to fill the available space
+        self.width_value = self.root.winfo_screenwidth()
+        self.height_value = height
+
+        # @todo Temporary hack to cope with my own multi-screen setup
+        if self.width_value < self.height_value:
+            self.height_value = self.width_value / 1.77
+
+        self.fontH = -round((-1 + self.height_value / (self.DISPLAY_LINES + 2)))
+        self.ttxfont2 = Font(family="teletext2", size=round(self.fontH))
+        self.ttxfont4 = Font(family="teletext4", size=round(self.fontH * 2))
+
+        total_columns = self.TEXT_COLUMNS + self.SIDE_PANEL_COLUMNS
+        self.text = Text(self.root, width=total_columns, height=self.DISPLAY_LINES)  # The normal text
+        self.textConceal = Text(self.root, width=total_columns, height=self.DISPLAY_LINES)  # Concealed copy
+
+        self._configure_text_widgets()
+        self._populate_initial_buffer()
+
+        self.rowOffset = 0  # Used to elide double height lines
+        self.pageLoaded = False
+        self.found = False
+        self.currentHeader = bytearray()
+        self.currentHeader.extend(
+            b"YZ0123456789012345678901234567890123456789"
+        )  # header of the page that is being displayed
+        self.revealMode = False  # hidden
+
+        # header flags
+        self.natOpt = 0  # 0=EN, 1=FR, 2=SW/FI/HU, 3=CZ/SK, 4=DE, 5=PT/SP, 6=IT, 7=N/A
+        self.clearFlag = False  # Set by clear(), cleared by printHeader()
+        self.offsetSplit = 8  # Where the side panels are split (0..16, default 8)
+
+    def _configure_text_widgets(self) -> None:
+        """Apply a consistent look-and-feel to both Text widgets."""
+        base_cfg = dict(
+            borderwidth=0,
+            foreground="white",
+            background="black",
+            font=self.ttxfont2,
+            padx=0,
+            pady=0,
+            autoseparators=0,
+            highlightbackground="black",
+        )
+        self.text.config(**base_cfg, spacing1=0, spacing2=0, spacing3=-1)
+        self.textConceal.config(**base_cfg)
+
+    def _populate_initial_buffer(self) -> None:
+        """Create initial blank rows and a demo double-height row (as per existing behaviour)."""
+        for i in range(self.DISPLAY_LINES):
+            if i == self._SPLASH_ROW_INDEX:
+                self.text.insert(END, self._SPLASH_ROW_TEXT)
+                self.textConceal.insert(END, self._SPLASH_ROW_TEXT)
+                self.text.tag_add(self._SPLASH_TAG, "12.0", "12.end")
+                self.text.tag_config(
+                    self._SPLASH_TAG, font=self.ttxfont4, offset=0, foreground="orange"
+                )  # double height
+            else:
+                self.text.insert(END, self._BLANK_ROW)
+                self.textConceal.insert(END, self._BLANK_ROW)
+
+    # true if while in graphics mode, it is a mosaic character. False if control or upper case alpha
+    def isMosaic(self, ch):
+        return bool(ch & 0x20)  # Bit 6 set?
+
+    # PEP 8 alias; keep original name intact for compatibility
+    def is_mosaic(self, ch):
+        return self.isMosaic(ch)
+
+    def dump(self, pkt):
+        return
+        print("Dumping row")
+        for i in range(len(pkt)):
+            print(str(i) + " " + pkt.hex())
+
+    def _row_index_range(self, row: int) -> tuple[str, str, str]:
+        """Return (rstr, start_index, end_index) for a given 0-based row."""
+        rstr = f"{row + 1}."
+        return rstr, f"{rstr}0", f"{rstr}end"
+
+    # clear and replace the line contents
+    # @param packet : packet to write
+    # @param row : row number to write (starting from 0)
+    def setLine(self, pkt, row):
+        #print('[setLine] ENTERS')
+        # It has two phases
+        # 1) Place all the characters on the line
+        # 2) Set their attributes: colour and font size
+        if row == 2:
+            self.dump(pkt)
+
+        rstr, tag_start, tag_end = self._row_index_range(row)
+
+        # wsfn remove this for testing
+        for tag in self.text.tag_names():  # erase the line attributes
+            attr = tag.split("-")
+            if attr[0] == str(row + 1):
+                #print('deleting tag = ' + tag)
+                self.text.tag_delete(tag)
+                self.textConceal.tag_delete(tag)
+
+        # erase the line
+        self.text.delete(tag_start, tag_end)  # erase the line
+        self.textConceal.delete(tag_start, tag_end)
+
+        # Set the conditions at the start of the line
+        graphicsMode = False
+        hasDoubleHeight = False
+        holdChar = 0x00
+        holdMode = False
+        contiguous = True
+        concealed = False
+        flashMode = False  # @todo
+
+        lastMosaicChar = " "
+
+        self.text.insert(tag_start, "        ")  # This could be a big mistake
+        self.text.insert(tag_start, "        ")
+
+        # PASS 1: put the characters in.
+        # ... existing code ...
 
     def __init__(self, root_param, height=360):
         # this is where we define a Text object and set it up
@@ -47,7 +249,7 @@ class TTXline:
         # what is the window height?
         self.width_value=self.root.winfo_screenwidth()
         self.height_value=height
-        
+
         # @todo Temporary hack to cope with my own multi-screen setup
         if self.width_value < self.height_value:
             self.height_value = self.width_value / 1.77
@@ -95,21 +297,13 @@ class TTXline:
         # self.region = 0 # National option selection bits in X/28/0 format 1. Used by RE in tti files.
 
         self.clearFlag = False # Set by clear(), cleared by printHeader()
-        
-        self.offsetSplit = 8 # Where the side panels are split (0..16, default 8)
 
-    def deham(self, value):
-        # Deham with NO checking! @todo Parity and error correction
-        b0 = (value & 0x02) >> 1
-        b1 = (value & 0x08) >> 2
-        b2 = (value & 0x20) >> 3
-        b3 = (value & 0x80) >> 4
-        return b0+b1+b2+b3
+        self.offsetSplit = 8 # Where the side panels are split (0..16, default 8)
 
     # true if while in graphics mode, it is a mosaic character. False if control or upper case alpha
     def isMosaic(self, ch):
         return ch & 0x20; # Bit 6 set?
-    
+
     def dump(self, pkt):
         return
         print("Dumping row")
@@ -126,7 +320,7 @@ class TTXline:
         # 2) Set their attributes: colour and font size
         if row==2:
             self.dump(pkt)
-        
+
 
         rstr = str(row + 1) + "." # The row string. First Text row is 1
         tag_start=str(rstr +"0")
@@ -155,7 +349,7 @@ class TTXline:
         flashMode = False # @todo
 
         lastMosaicChar = ' '
-        
+
         self.text.insert(tag_start, "        ") # This could be a big mistake
         self.text.insert(tag_start, "        ")
 
@@ -219,17 +413,17 @@ class TTXline:
                 graphicsMode = True
 
         # PASS 2: Add text attributes: font, colour, flash
-        
+
         # Any full row colours?
         #print('[setLine] rendering pass 2')
         foreground_colour = 7 # 'white'
         background_colour = 0 # 'black'
         text_height = 'single'
-        
+
         # Set the initial colour for the row
         # background_colour = metaData.rowColour(row) # X26/0 full row colour triplet
         #print('[setLine] row = ' + str(row) + " bgcol = " + background_colour)
-        
+
         # Complicate things if side panels are enabled
         if metaData.leftSidePanel or metaData.rightSidePanel:
             #print('[setLine] SETTING SIDE PANELS')
@@ -252,7 +446,7 @@ class TTXline:
                     self.text.tag_add(tag_id, rstr + str(48), rstr + 'end') # right panel
                     self.textConceal.tag_add(tag_id, rstr + str(48), rstr + 'end') # right panel
 
-        
+
         # Set the text attributes: colour and font size
         # row
         row = str(row + 1)
@@ -341,7 +535,7 @@ class TTXline:
         return
         flags = [0,0,0,0,0,0,0,0,0]
         for i in range(8):
-            flags[i] = self.deham(packet[i+2])
+            flags[i] = deham(packet[i+2])
             print (hex(flags[i]) + ', ', end='')
         print()
         page = flags[1]*0x10 + flags[0]
@@ -398,7 +592,7 @@ class TTXline:
                 # for tag in self.text.tag_names(): # This clears all tags BUT only when moving to a new page
                 #     self.text.tag_delete(tag)
                 self.decodeFlags(packet)
-                
+
             #if not self.pageLoaded:
             #    self.pageLoaded = True
             buf = self.currentHeader # The header stays on the loaded page
@@ -429,7 +623,7 @@ class TTXline:
     # Return True if the row includes double height
     def printRow(self, packet, row):
         self.text.config(state = NORMAL) # allow editing
-        # If the line is double height, then skip the next line 
+        # If the line is double height, then skip the next line
         if self.setLine(packet, row - self.rowOffset):
             self.rowOffset=self.rowOffset+1
             return True
@@ -457,7 +651,7 @@ class TTXline:
         # self.region = 0
         metaData.clear()
         # I think I want to clear all the rows, but this breaks it
-        
+
         s = self.text.get('1.0', 'end')
         print("deleting lines. char count = "+str(len(s)) + " reason = " + reason)
         self.text.delete('1.0', 'end')
@@ -466,10 +660,10 @@ class TTXline:
         for row in range(1,24):
             self.text.insert(END, "                                           \n") # 42 characters
             self.textConceal.insert(END, "                                          \n")
-            
+
 #        self.text.delete('1.0')
         #str = "                                        "
         #str2 = str.encode(str)
-        
-        #self.setLine(str, 4)    
-        #self.setLine(b'0123456789012345678901234567890123456789\n', 4)    
+
+        #self.setLine(str, 4)
+        #self.setLine(b'0123456789012345678901234567890123456789\n', 4)

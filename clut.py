@@ -65,7 +65,41 @@
 ##
 
 class Clut:
+    """
+    Handles Color Look-Up Tables (CLUTs) for different intensity and color configurations.
+
+    The `Clut` class is designed to manage four different Color Look-Up Tables (CLUTs) used in
+    color remapping. These tables include configurations for full intensity, half intensity,
+    and various customized color palettes. The class provides methods for resetting CLUTs to
+    default values, modifying specific colors in the tables, retrieving color values, and
+    remapping colors based on given indices and foreground/background context.
+
+    :ivar clut0: Full intensity color table (default colors).
+    :type clut0: list[str]
+    :ivar clut1: Half intensity color table (default colors).
+    :type clut1: list[str]
+    :ivar clut2: Customizable color table with predefined colors.
+    :type clut2: list[str]
+    :ivar clut3: Additional customizable color table with predefined colors.
+    :type clut3: list[str]
+    """
     def __init__(self):
+        """
+        This class represents a color lookup table (CLUT) that manages multiple sets of color
+        values. It initializes default full intensity, half intensity, and additional color
+        sets. The values are stored in lists, with each list containing eight elements. The
+        class also provides functionality to reset the color values to their default state.
+
+        Attributes:
+            clut0 (list[int]): A list of eight integers representing the default
+                full intensity color values.
+            clut1 (list[int]): A list of eight integers representing the default
+                half intensity color values.
+            clut2 (list[int]): A list of eight integers representing an additional
+                set of color values.
+            clut3 (list[int]): A list of eight integers representing another
+                additional set of color values.
+        """
         print ("Clut loaded")
         self.clut0 = [0] * 8 # Default full intensity colours
         self.clut1 = [0] * 8 # default half intensity colours
@@ -77,7 +111,7 @@ class Clut:
     # Used by X26/0 to swap entire cluts
     # @param colour - Colour index 0..7
     # @param remap - Remap 0..7
-    # @param foreground - True for foreground coilour, or False for background
+    # @param foreground - True for foreground colour, or False for background
     # @return - Colour string for tkinter. eg. 'black' or '#000'
     def RemapColourTable(self, colourIndex, remap, foreground):
         if type(colourIndex) != int:

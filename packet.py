@@ -32,6 +32,7 @@ from mapper import getdiacritical, MapLatinG2
 # Packets are analysed here.
 # Data decoded from the packets may be retrieved but not specific data about the packets themselves
 class Packet:
+    DEFAULT_ROW_COLOUR = "#000"
     def __init__(self):
         self.clear()
         return
@@ -58,15 +59,21 @@ class Packet:
     # X26/0 full colour row
     # @param row - Row number to check
     # @return - The colour value for that row, or black if there is none
-    def rowColour(self, row):
-        for i in self.RowColour:
-            r = i[0] # row
-            a = i[3] # if set, then all rows from here are coloured
-            if r == row or ((row > r) and a) : # our row?
-                c = i[1] # clut
-                h = i[2] # index
-                return clut.get_value(c, h)
-        return '#000' # default row to black
+    def rowColour(self, row: int) -> str:
+        for entry in self.RowColour:
+            entry_row = entry[0]  # row
+            applies_to_following_rows = entry[3]  # if set, then all rows from here are coloured
+
+            is_applicable = (entry_row == row) or (applies_to_following_rows and row > entry_row)
+            if not is_applicable:
+                continue
+
+            clut_index = entry[1]  # clut
+            colour_index = entry[2]  # index
+            return clut.get_value(clut_index, colour_index)
+
+        return self.DEFAULT_ROW_COLOUR  # default row to black
+
     
     # If there is an X26/0 mapped colour, return it
     # @row - Row index of a spacing attribute
@@ -115,6 +122,21 @@ class Packet:
         print("[Packet::decode] *************************** exits")
         
     def decodeX280Format1(self, pkt): # X/28/0 format 1. p32 table 4
+        """
+        Decodes the X/28/0 format 1 packet and extracts its components for processing.
+
+        The function processes a packet in the X/28/0 format, as described in the
+        relevant specifications. The designations, coding mechanisms, and color tables
+        are handled based on the specifications outlined in the provided tables. It
+        decodes triplets, extracts regional information, determines side panel
+        parameters, and processes color data to update the color lookup table (CLUT). A
+        global CLUT is utilized for handling color mappings, and the function determines
+        how to parse and structure the remaining data for subsequent use.
+
+        :param pkt: The `pkt` parameter represents the packet data to be decoded.
+        :type pkt: bytearray
+        :return: None
+        """
         # "Default G0 primary and G2 supplementary character sets plus national option character
         # sub-sets are designated. The 7-bit value is used to select an entry in table 32."
         global clut

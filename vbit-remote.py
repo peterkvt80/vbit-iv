@@ -27,50 +27,67 @@
 # pip3 install readchar
 # pip3 install pyzmq
 #
-import sys
+"""
+Remote control client for vbit-iv.
+
+Connects a REQ socket to the remote control port and sends key presses.
+"""
+
 import zmq
-import time
-import readchar
 
-print("Connecting to vbit-iv")
-
-context = zmq.Context()
-
-#  Socket to talk to server. TODO: Make the IP address and port a command line parameter
-# Default to local host. If you want to control vbit-iv from another computer then
-# set the host address to your vbit-iv machine
-host = "tcp://127.0.0.1:7777"
-#host = "tcp://192.168.1.85:7777"
-socket = context.socket(zmq.REQ)
-socket.connect(host)
-
-#  main loop. Get character, send request to vbit-i
-# Characters that the server accepts:
-# Page numbers 0 to 9
-# h - hold
-# r - reveal
-# d - toggle double height
-# + - next page
-# - - previous page
-# u - red button
-# i - green button
-# o - yellow button
-# p - cyan button
+DEFAULT_HOST = "tcp://127.0.0.1:7777"
+EXIT_KEYS = {"q"}  # Ctrl+C is handled via KeyboardInterrupt
 
 
-# This client can be terminated with
-# q or ctrl-c
+def _read_key() -> str:
+    """
+    Read a single character.
 
-ch = '?'
+    Prefers `readchar` (if installed); otherwise falls back to a very small
+    cross-platform-ish stdin reader.
+    """
+    try:
+        import readchar  # type: ignore
+    except ModuleNotFoundError:
+        # Fallback: read a single character from stdin.
+        # On Windows this may require Enter in some terminals; still better than crashing.
+        return input()[:1] or ""
+    else:
+        return readchar.readchar()
 
-while True:
-    ch = readchar.readchar()
-    if ord(ch) == 3 or ch == 'q':
-        socket.send_string(ch)
-        exit()
-    #print("Sending request " + str(ord(ch))) #str(key))
-    socket.send_string(ch)
-    #  Get the reply.
-    #print("Sent request. Awaiting reply")
-    message = socket.recv()
-    #print("Received reply" + str(message[0]))
+
+def _create_socket(context: zmq.Context, host: str) -> zmq.Socket:
+    socket = context.socket(zmq.REQ)
+    socket.connect(host)
+    return socket
+
+
+def main(host: str = DEFAULT_HOST) -> None:
+    print("Connecting to vbit-iv")
+    with zmq.Context() as context:
+        socket = _create_socket(context, host)
+
+        try:
+            while True:
+                ch = _read_key()
+
+                if not ch:
+                    continue
+
+                # Ctrl+C is handled by KeyboardInterrupt; keep 'q' for convenience.
+                if ch in EXIT_KEYS:
+                    socket.send_string(ch)
+                    return
+
+                socket.send_string(ch)
+                socket.recv()  # reply is not used; keep the REQ/REP handshake happy
+        except KeyboardInterrupt:
+            # Send 'q' to request a clean shutdown on the server side, then exit.
+            try:
+                socket.send_string("q")
+            except Exception:
+                pass
+
+
+if __name__ == "__main__":
+    main()

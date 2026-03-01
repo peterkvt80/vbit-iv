@@ -80,16 +80,15 @@ def deham(value):
     b3 = (value & 0x80) >> 4
     return b0+b1+b2+b3
 
-def mrag(v1, v2):
-    rowlsb = deham(v1)
-    mag = rowlsb % 8
-    if mag==0:
-        mag = 8
+def mrag(byte1: int, byte2: int) -> tuple[int, int]:
+    """Decode Teletext MRAG (Magazine and Row Address Group) from two bytes."""
+    ROW_LSB_FLAG = 0x08  # bit indicating the least-significant bit of the row number
 
-    row = deham(v2) << 1
-    if (rowlsb & 0x08)>0:
-        row = row + 1
-    return mag, row
+    decoded1 = deham(byte1)
+    magazine = decoded1 % 8 or 8  # magazines are 1..8, where 0 maps to 8
+
+    row_number = (deham(byte2) << 1) | (1 if (decoded1 & ROW_LSB_FLAG) else 0)
+    return magazine, row_number
 
 def decodePage(pkt):
     tens =  deham(pkt[3])
@@ -229,7 +228,7 @@ def process(pkt):
                         #ttx.printRow(b"QQxxxxxxxxxxyyyyyyyyyyzzzzzzzzzzkkkkkkkkkk", 24)
             if seeking:
                 suppressHeader = False
-                    
+
                 #ttx.lines.clearX26()
                 clut.reset() # @todo Do we need to save colours in some cases?
                 # print("sub-code = " + hex(subcode))
@@ -336,4 +335,4 @@ except KeyboardInterrupt: # If CTRL+C is pressed, exit cleanly:
     # print(inst)
 
 finally:
-    print("vbit-iv clean up") 
+    print("vbit-iv clean up")
