@@ -3,7 +3,7 @@
 # clut.py Teletext colour lookup table
 # Maintains colour lookups
 #
-# Copyright (c) 2020 Peter Kwan
+# Copyright (c) 2026 Peter Kwan
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -66,39 +66,39 @@
 
 class Clut:
     """
-    Handles Color Look-Up Tables (CLUTs) for different intensity and color configurations.
+    Handles Colour Look-Up Tables (CLUTs) for different intensity and colour configurations.
 
     The `Clut` class is designed to manage four different Color Look-Up Tables (CLUTs) used in
-    color remapping. These tables include configurations for full intensity, half intensity,
-    and various customized color palettes. The class provides methods for resetting CLUTs to
-    default values, modifying specific colors in the tables, retrieving color values, and
-    remapping colors based on given indices and foreground/background context.
+    colour remapping. These tables include configurations for full intensity, half intensity,
+    and various customized colour palettes. The class provides methods for resetting CLUTs to
+    default values, modifying specific colours in the tables, retrieving colour values, and
+    remapping colours based on given indices and foreground/background context.
 
-    :ivar clut0: Full intensity color table (default colors).
+    :ivar clut0: Full intensity colour table (default colours).
     :type clut0: list[str]
-    :ivar clut1: Half intensity color table (default colors).
+    :ivar clut1: Half intensity colour table (default colours).
     :type clut1: list[str]
-    :ivar clut2: Customizable color table with predefined colors.
+    :ivar clut2: Customizable colour table with predefined colours.
     :type clut2: list[str]
-    :ivar clut3: Additional customizable color table with predefined colors.
+    :ivar clut3: Additional customizable colour table with predefined colours.
     :type clut3: list[str]
     """
     def __init__(self):
         """
-        This class represents a color lookup table (CLUT) that manages multiple sets of color
-        values. It initializes default full intensity, half intensity, and additional color
+        This class represents a colour lookup table (CLUT) that manages multiple sets of colour
+        values. It initializes default full intensity, half intensity, and additional colour
         sets. The values are stored in lists, with each list containing eight elements. The
-        class also provides functionality to reset the color values to their default state.
+        class also provides functionality to reset the colour values to their default state.
 
         Attributes:
             clut0 (list[int]): A list of eight integers representing the default
-                full intensity color values.
+                full intensity colour values.
             clut1 (list[int]): A list of eight integers representing the default
-                half intensity color values.
+                half intensity colour values.
             clut2 (list[int]): A list of eight integers representing an additional
-                set of color values.
+                set of colour values.
             clut3 (list[int]): A list of eight integers representing another
-                additional set of color values.
+                additional set of colour values.
         """
         print ("Clut loaded")
         self.clut0 = [0] * 8 # Default full intensity colours

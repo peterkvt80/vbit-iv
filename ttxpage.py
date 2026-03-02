@@ -152,8 +152,6 @@ class TTXpage:
     def toggle_reveal(self) -> None:
         self.lines.toggleReveal()
 
-    # ... existing code ...
-
     def decodeLinks(self, packet):
         self.decode_links(packet)
 
@@ -238,8 +236,6 @@ class TTXpage:
         for i in range(8):
             print(str(i) + ":" + hex(pkt[i]) + " ", end="")
         print()
-
-    # ... existing code ...
 
     def decodeRow26(self, pkt):
         return  # This is moved to packet

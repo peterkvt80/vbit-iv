@@ -27,40 +27,33 @@
 from clut import clut, Clut
 from mapper import getdiacritical, MapLatinG2
 
+
 # This doesn't want to be packets centred, it is pages meta data.
 # In other words:
 # Packets are analysed here.
 # Data decoded from the packets may be retrieved but not specific data about the packets themselves
 class Packet:
     DEFAULT_ROW_COLOUR = "#000"
+
     def __init__(self):
         self.clear()
         return
-    
+
     # reset all meta-data to the defaults
     def clear(self):
         self.region = 0
         self.X26CharMappings = []  # diacriticals
         # X28/0 settings
-        self.ChangeColour = [] # background colour replacement
+        self.ChangeColour = []  # background colour replacement
         self.RowColour = []  # tuple(row 0..24 , clut number 0..3, colour index 0..7)
         self.BlackBackgroundColourSubstitution = False
-        self.ColourTableRemapping=0 # clut swap 
-        self.leftSidePanel = True # These should default to False for level 1
+        self.ColourTableRemapping = 0  # clut swap
+        self.leftSidePanel = True  # These should default to False for level 1
         self.rightSidePanel = True
-
-        # X/28/0 format 1: character set designations (7-bit each: region(4) + language(3))
+        # Packet 28: default character set designation (7-bit: region(4) + language(3))
         self.defaultCharSet = None
         self.defaultCharSetRegion = None
         self.defaultCharSetLanguage = None
-        self.secondCharSet = None
-        self.secondCharSetRegion = None
-        self.secondCharSetLanguage = None
-
-        # X/28/0 format 1: screen colour remapping (triplet 13 fields)
-        self.defaultScreenColour = None  # 5-bit
-        self.defaultRowColour28 = None   # 5-bit (name avoids clashing with rowColour() method)
-
         clut.reset()
 
     def mapColourFg(self, row, column, colour):
@@ -68,7 +61,7 @@ class Packet:
 
     def mapColourBg(self, row, column, colour):
         return self.mapColour(row, column, colour, False)
-    
+
     # X26/0 full colour row
     # @param row - Row number to check
     # @return - The colour value for that row, or black if there is none
@@ -87,220 +80,362 @@ class Packet:
 
         return self.DEFAULT_ROW_COLOUR  # default row to black
 
-    
     # If there is an X26/0 mapped colour, return it
     # @row - Row index of a spacing attribute
     # @column - Column index of a spacing attribute
     # @IsFg - True if the colour we are looking for is a foreground colour
-    # @return The colour mapped at the address    
+    # @return The colour mapped at the address
     def mapColour(self, row, column, colour, isFg):
         # print("[packet::mapColour] entered. row = " + str(row) + " col = " + str(column) + " clr= " + str(colour) )
         # look through the ChangeColour list to find if we have a matched address
-        for i in self.ChangeColour: # [row, column, clutIx, colourIx, isFg]
+        for i in self.ChangeColour:  # [row, column, clutIx, colourIx, isFg]
             r = i[0]
             c = i[1]
             fg = i[4]
-            #print ("[mapColour] r = " + str(r))
-            #print ("[mapColour] c = " + str(c))
-            #print ("[mapColour] i[0]" + str(i[0]))
+            # print ("[mapColour] r = " + str(r))
+            # print ("[mapColour] c = " + str(c))
+            # print ("[mapColour] i[0]" + str(i[0]))
             # If the address matches and the foreground or background type matches
             if (row - 1) == r and column == c and fg == isFg:
-                #print('[mapColour] ' + str(i))
-                #print('[mapColour matched] row, col = ' + str(row) + ', ' + str(column) + ' fg = ' + str(isFg))
-                #print ("[mapColour matched] clut[ix] " + str(i[2]) + '[' + str(i[3])+ ']')
+                # print('[mapColour] ' + str(i))
+                # print('[mapColour matched] row, col = ' + str(row) + ', ' + str(column) + ' fg = ' + str(isFg))
+                # print ("[mapColour matched] clut[ix] " + str(i[2]) + '[' + str(i[3])+ ']')
                 colour = clut.get_value(i[2], i[3])
-                #print('[mapColour matched] colour = ' + colour)
-                return colour # found and replaced
+                # print('[mapColour matched] colour = ' + colour)
+                return colour  # found and replaced
         return 'x'
-        
-    
+
     # decode a packet. Returns the packet type or 0 if it is not X/26, X28, X29
     # @param pkt - T42 packet
     # @param row - Packet number
     def decode(self, pkt, row):
         print("[Packet::decode] " + str(row) + " ************************************ Enters")
-        dc = self.deham(pkt[2]) # designation code
-        
-        if dc == 0 and row == 27:
-            decodeLinks(pkt)
+        dc = self.deham(pkt[2])  # designation code
 
         if (dc == 0 or dc == 4) and row == 28:
-            #self.dumpPacket(pkt) # debug
+            # self.dumpPacket(pkt) # debug
             self.decodeX280Format1(pkt)
             return
+        if row == 26:
+            print("[decode] packet 26 dc = " + str(dc))  # self.dumpPacket(pkt) # debug
+            self.decodeX260(pkt)
+            return
 
-        print("[Packet::decode] Not implemented")
+        print("[Packet::decode] Not implemented X/" + str(row) + "/ dc = " + str(dc))
 
-    def decodeX280Format1(self, pkt): # X/28/0 format 1. p32 table 4
+        print("[Packet::decode] *************************** exits")
+
+    def decodeX280Format1(self, pkt):  # X/28/0 format 1. p32 table 4
         """
         Decodes the X/28/0 format 1 packet and extracts its components for processing.
+
+        The function processes a packet in the X/28/0 format, as described in the
+        relevant specifications. The designations, coding mechanisms, and color tables
+        are handled based on the specifications outlined in the provided tables. It
+        decodes triplets, extracts regional information, determines side panel
+        parameters, and processes color data to update the color lookup table (CLUT). A
+        global CLUT is utilized for handling color mappings, and the function determines
+        how to parse and structure the remaining data for subsequent use.
+
+        :param pkt: The `pkt` parameter represents the packet data to be decoded.
+        :type pkt: bytearray
+        :return: None
         """
+        # "Default G0 primary and G2 supplementary character sets plus national option character
+        # sub-sets are designated. The 7-bit value is used to select an entry in table 32."
         global clut
-        dc = self.deham(pkt[2]) # 0 = CLUT 2/3, 4 = CLUT 0/1
-        print("[Packet::decodeX280Format1] Packet X/28/" + str(dc)+ " format 1")
+        dc = self.deham(pkt[2])  # 0 = CLUT 2/3, 4 = CLUT 0/1
+        print("[Packet::decodeX280Format1] Packet X/28/" + str(dc) + " format 1")
 
-        triplets = self.decodeTriplets(pkt) # decode all the triplets
+        # @todo "Where packets 28/0 and 28/4 are both transmitted as part of a page, packet 28/0 takes precedence over
+        # 28/4 for all but the colour map entry coding."
 
-        def reverse_language_bits_7bit(value: int) -> int:
-            """
-            Match the C++ behaviour: swap language b0 and b2, keep region bits and language b1.
-            Language bits are the low 3 bits of the 7-bit value.
-            """
-            value &= 0x7f
-            a = value & 0x7a  # keep everything except language b0 (0x01) and b2 (0x04)
-            if value & 0x01:
-                a |= 0x04
-            if value & 0x04:
-                a |= 0x01
-            return a & 0x7f
+        triplets = self.decodeTriplets(pkt)  # decode all the triplets
+        # self.printTriplets(triplets) # debug
 
-        def split_charset_7bit(value: int) -> tuple[int, int]:
-            value &= 0x7f
-            region = (value >> 3) & 0x0f
-            language = value & 0x07
-            return region, language
+        # Decode everything and decide if we want to do anything with it later
+        t = triplets[0]
+        function = t & 0x0f  #
+        coding = (t > 4) & 0x07  # page coding (7 bits + parity)
+        G0G2 = (t >> 8) & 0x7f  # The lowest three bits are don't care
 
-        # Triplet 1 (triplets[0]) fields (match C++ bit layout)
-        t1 = triplets[0]
-        pageFunction = t1 & 0x0f
-        pageCoding = (t1 >> 4) & 0x07
+        # Expose packet-28 charset designation explicitly (region+language)
+        self.defaultCharSet = G0G2
+        self.defaultCharSetRegion = (G0G2 >> 3) & 0x0f
+        self.defaultCharSetLanguage = G0G2 & 0x07
 
-        default_charset_raw = (t1 >> 7) & 0x7f
-        default_charset = reverse_language_bits_7bit(default_charset_raw)
+        self.region = (t >> 10) & 0x0f  # This is the RE region number in tti files.
 
-        self.defaultCharSet = default_charset
-        self.defaultCharSetRegion, self.defaultCharSetLanguage = split_charset_7bit(default_charset)
-
-        # Keep Packet.region aligned with the default character set's region nibble
-        self.region = self.defaultCharSetRegion
-
-        print(
-            "[Packet::decodeX280Format1] function="
-            + str(pageFunction)
-            + " coding="
-            + str(pageCoding)
-        )
-        print(
-            "[Packet::decodeX280Format1] defaultCharSet(raw)="
-            + str(default_charset_raw)
-            + " defaultCharSet="
-            + str(self.defaultCharSet)
-            + " (region="
-            + str(self.defaultCharSetRegion)
-            + ", language="
-            + str(self.defaultCharSetLanguage)
-            + ")"
-        )
-
-        # Second character set: t1 bits 15..18 plus t2 bits 1..3 (match C++)
-        t2 = triplets[1]
-        second_charset_raw = (((t1 >> 14) & 0x0f) | ((t2 & 0x07) << 4)) & 0x7f
-        second_charset = reverse_language_bits_7bit(second_charset_raw)
-
-        self.secondCharSet = second_charset
-        self.secondCharSetRegion, self.secondCharSetLanguage = split_charset_7bit(second_charset)
-
-        # Side panel flags and columns (fix precedence + match C++ extraction)
-        self.leftSidePanel = (t2 & 0x08) > 0
-        self.rightSidePanel = (t2 & 0x10) > 0
-        sidePanelStatus = (t2 & 0x20) > 0  # Level 3.5 only
-        leftColumns = (t2 >> 6) & 0x0f     # t2, 7..10
-
-        print(
-            "* secondCharSet(raw)="
-            + str(second_charset_raw)
-            + " secondCharSet="
-            + str(self.secondCharSet)
-            + " (region="
-            + str(self.secondCharSetRegion)
-            + ", language="
-            + str(self.secondCharSetLanguage)
-            + ") leftPanel="
-            + str(self.leftSidePanel)
-            + " rightPanel="
-            + str(self.rightSidePanel)
-        )
-        print("* sidePanelStatus = " + str(sidePanelStatus) + " leftColumns = " + str(leftColumns))
-
+        print("[Packet::decodeX280Format1] region = " + str(self.region))
+        secondG0 = ((t >> 14) & 0x0f) << 3  # 7 bit value defined in table 33.
+        t = triplets[1]
+        secondG0 = secondG0 | t & 0x07
+        self.leftSidePanel = t & 0x08 > 0
+        self.rightSidePanel = t & 0x10 > 0
+        print("* coding = " + str(coding) + " secondG0 = " + str(secondG0) + " leftPanel = " + str(
+            self.leftSidePanel) + " rightPanel = " + str(self.rightSidePanel))
+        sidePanelStatus = t & 0x20 > 0  # Level 3.5 only
+        sidePanelColumns = t & 0x1c >> 6  # Number of columns in side panels
+        print("* sidePanelStatus = " + str(sidePanelStatus) + " sidePanelColumns = " + str(sidePanelColumns))
         # the rest is colour, 16 lots of 4 bit RGB
         bit_index = 10
         triplet_start = 1
         colour = 0
-        for i in range(16 * 3): # Sixteen R, G, B values
+        # for i in range(16 * 3):
+        for i in range(16 * 3):  # @todo Should be 16 for the two palettes
+            # work out the indices
             start_bit = (i * 4) + bit_index
             triplet_index = triplet_start + int(start_bit / 18)
             start_bit = start_bit % 18
-            colour_index = int(i/3)
+            colour_index = int(i / 3)  # CLUT 0/1 for dc == 4
 
-            colour_value = i % 3 # RGB
-            clut_ix = 1
+            colour_value = i % 3  # RGB
+            clut_ix = 1  # clut 0/1 where dc = 4
             if i < (8 * 3):
                 clut_ix = 0
-            if dc == 0:
+            if dc == 0:  # CLUT 2/3 for dc == 0
                 clut_ix = clut_ix + 2
-
-            t = triplets[triplet_index]
-            t = (t >> start_bit) & 0x0f
+                # extract the 4 bit colour value
+            t = triplets[triplet_index]  # Get the triplet
+            # print("[decodeX280Format1] triplet = " + hex(t))
+            t = (t >> start_bit) & 0x0f  # Shift and mask
+            # print("[decodeX280Format1] masked = " + hex(t))
+            # does the data cross a triplet boundary?
             if start_bit > 14:
-                split = 18 - start_bit
+                split = 18 - start_bit  # This is always 2! Could assert that
                 t = t << split
-                t2b = triplets[triplet_index+1] & 0x03
-                t = t | t2b
+                t2 = triplets[triplet_index + 1] & 0x03  # Triplets only ever break on two bits
+                t = t | t2
 
-            colour = colour | (t << ((2-colour_value) * 4))
-            if colour_value == 2:
-                colourHex = '#' + f'{colour:03x}'
+                # print("split = " + str(split))
+
+            # print("[decodeX280Format1] i = " + str(i) + " colour = " + str(colour_index) + "(" + str(colour_value) + ") triplet = " + str(triplet_index) + " start_bit = " + str(start_bit) + " Colour = " + hex(t))
+            colour = colour | t << ((2 - colour_value) * 4)
+            # print("[decodeX280Format1]"+hex(t)+" ",end='')
+            if colour_value == 2:  # Done an RGB value
+                colourHex = '#' + f'{colour:03x}'  # This is the colour in 12 bit web hex format
                 clut.set_value(colourHex, clut_ix, colour_index)
+                # print("[decodeX280Format1] colour = " + hex(colour) +", colourHex = " + colourHex )
                 colour = 0
-
-        # Triplet 13 (triplets[12]) screen colour remapping fields (match C++)
-        t13 = triplets[12]
-        self.defaultScreenColour = (t13 >> 4) & 0x1f   # bits 5..9
-        self.defaultRowColour28 = (t13 >> 9) & 0x1f    # bits 10..14
-        self.BlackBackgroundColourSubstitution = ((t13 >> 14) & 0x01) > 0  # bit 15
-        self.ColourTableRemapping = (t13 >> 15) & 0x07 # bits 16..18
-
-        print(
-            "[Packet::decodeX280Format1] defaultScreenColour="
-            + str(self.defaultScreenColour)
-            + " defaultRowColour28="
-            + str(self.defaultRowColour28)
-            + " blackBgSub="
-            + str(self.BlackBackgroundColourSubstitution)
-            + " remap="
-            + str(self.ColourTableRemapping)
-        )
+        # remaining bits
+        t = triplets[13 - 1]
+        self.BlackBackgroundColourSubstitution = (t & 0x04000) > 0  # page 33. Bit 15
+        self.ColourTableRemapping = (t >> 15) & 0x07
         print("[decodeX280Format1] EXITS")
+
+    def decodeX260(self, pkt):
+        print("[decodeX260] ENTERS")
+
+        # There is a lot of stuff in X26, diacriticals, colours, side panels ...
+        tp = self.decodeTriplets(pkt)
+        dc = self.deham(pkt[2])  # 0
+
+        print("[decodeX260] dc = " + str(dc))
+        for i in range(0, 13):
+            x = tp[i]  # self.getTriplet(i, pkt)
+            data = (x >> 11) & 0x7f
+            mode = (x >> 6) & 0x1f
+            address = x & 0x3f
+            if mode != 0x1f:  # filter out termination marker
+                print("[decodeX260] Packet 26 triplet = " + str(i) + " data = " + hex(data) + " address = " + str(
+                    address), end='')
+            if address >= 40 and address <= 63:  # It is a row address group. TABLE 27.
+                modeStr = {
+                    0x01: "Full row colour",
+                    0x02: "Reserved",
+                    0x03: "Reserved",
+                    0x04: "Set Active Position",
+                    0x05: "Reserved",
+                    0x06: "Reserved",
+                    0x07: "Address display row0",
+                    0x08: "PDC Data - Country",
+                    0x09: "PDC Data - Month and day",
+                    0x0a: "PDC Data - Cursor row, start time",
+                    0x0b: "PDC Data - Cursor row, end time",
+                    0x0c: "PDC",
+                    0x0d: "PDC",
+                    0x0e: "Reserved",
+                    0x0f: "Reserved",
+                    0x12: "Adaptive Object Invocation",
+                    0x19: "Reserved",
+                    0x1a: "Reserved",
+                    0x1b: "Reserved",
+                    0x1c: "Reserved",
+                    0x1d: "Reserved",
+                    0x1e: "Reserved",
+                    0x1f: "Termination marker",
+                }
+            if address >= 0 and address <= 39:  # It is a column address group
+                modeStr = {
+                    0x00: "Foreground colour",
+                    0x01: "Block mosaic character G1",
+                    0x02: "Smoothed mosaic G3",
+                    0x03: "Background colour",
+                    0x04: "Reserved",
+                    0x05: "Reserved",
+                    0x06: "PDC - Cursor column",
+                    0x07: "Additional flash functions",
+                    0x08: "Modified G0/G2 character set",
+                    0x09: "Character from G0 set (2.5, 3.5)",
+                    0x0a: "Reserved",
+                    0x0b: "Line drawing or smoothed mosaic G3 set (2.5, 3.5)",
+                    0x0c: "Display attributes",
+                    0x0d: "DRCS character invocation",
+                    0x0e: "Font style",
+                    0x0f: "Character from the G2 set",
+                    0x10: "G0 character without diacritical mark",
+                    0x11: "G0 character with diacritical mark",
+                    0x12: "G0 character with diacritical mark",
+                    0x13: "G0 character with diacritical mark",
+                    0x14: "G0 character with diacritical mark",
+                    0x15: "G0 character with diacritical mark",
+                    0x16: "G0 character with diacritical mark",
+                    0x17: "G0 character with diacritical mark",
+                    0x18: "G0 character with diacritical mark",
+                    0x19: "G0 character with diacritical mark",
+                    0x1a: "G0 character with diacritical mark",
+                    0x1b: "G0 character with diacritical mark",
+                    0x1c: "G0 character with diacritical mark",
+                    0x1d: "G0 character with diacritical mark",
+                    0x1e: "G0 character with diacritical mark",
+                    0x1f: "G0 character with diacritical mark",
+                }
+            if mode == 0x1f:  # A termination marker, nothing more to come
+                return
+            print(" tuple(" + str(i) + ") mode(" + hex(mode) + ") = " + modeStr.get(mode, hex(mode)))
+            if address >= 40 and address <= 63:  # It is a row address group
+                self.rowAddr = address - 40
+                if mode == 0x01:  # Full Row Colour. Page 83
+                    # print ('[decodeX260] todo Full row colour mode 0x01')
+                    # push a tuple(row, clut, colour)
+                    s = (data >> 5) & 0x03  # 0..3
+                    multipleRow = s != 0
+                    clutIndex = (data >> 3) & 0x03  # 0..3
+                    colourIndex = data & 0x07  # 0..7
+                    self.RowColour.append(tuple((self.rowAddr, clutIndex, colourIndex, multipleRow)))
+                    # we can extract S: 0=row 3=area, C = Clut index, data = colour
+                    # We will need to save this away and execute it
+                # @todo Modes between 0 and 0x1f
+                # When data field D6 and D5 are both set to '0', bits D4 - D0 define the background
+                # colour. Bits D4 and D3 select a CLUT in the Colour Map of table 30, and bits D2 -
+                # D0 select an entry from that CLUT. All other data field values are reserved.
+                # The effect of this attribute persists to the end of a display row unless overridden
+                # by either a spacing or a non-spacing attribute defining the background colour.
+                if mode == 0x04:  # Set Active Position
+                    if data < 40:  # level >= 2.5
+                        self.colAddr = data
+                    # print("rowAddr = " + str(self.rowAddr))
+            if address >= 0 and address <= 39:  # It is a column address group
+                # @todo Modes between 0 and 0x1f
+                if mode == 0x00:  # Foreground colour
+                    if (data & 0x60) == 0:
+                        clutIndex = (data >> 3) & 0x03  # Which CLUT?
+                        colourIndex = data & 0x07  # Which colour in the CLUT?
+                        print("[decodeX260] set foreground colour at (" + str(self.rowAddr) + ", " + str(
+                            address) + ") to " + str(clutIndex) + "[" + str(colourIndex) + ']')
+                        fgCol = [self.rowAddr, address, clutIndex, colourIndex, True]
+                        self.ChangeColour.append(fgCol)
+                if mode == 0x01:  # Block Mosaic Character from the G1 Set. Page 90. Level 1.5
+                    # @todo Probably needs to take into account contiguous/separated
+                    ch = data & 0x7f
+                    if ch >= 0x20 and ch < 0x40:
+                        ch = ch + 0xe680 - 0x20
+                    if ch >= 0x60 and ch < 0x80:
+                        ch = ch + 0xe6a0 - 0x60
+                    mapChar = tuple((self.rowAddr, address, ch))
+                    self.addMapping(mapChar)
+                if mode == 0x02:  # Smoothed Mosaic Character from the G3 Set. Page 90
+                    # See table 48, Page 127
+                    ch = data & 0x7f
+                    if ch >= 0x20 and ch < 0x60:
+                        ch = ch + 0xe700 - 0x20
+                    if ch >= 0x60 and ch < 0x80:
+                        ch = ch + 0xeee0 - 0x60
+                    mapChar = tuple((self.rowAddr, address, ch))
+                    self.addMapping(mapChar)
+                if mode == 0x03:  # Background colour
+                    if (data & 0x60) == 0:
+                        clutIndex = (data >> 3) & 0x03  # Which CLUT?
+                        colourIndex = data & 0x07  # Which colour in the CLUT?
+                        print("[decodeX260] set background colour at (" + str(self.rowAddr) + ", " + str(
+                            address) + ") to " + str(clutIndex) + "[" + str(colourIndex) + ']')
+                        bgCol = [self.rowAddr, address, clutIndex, colourIndex, False]
+                        self.ChangeColour.append(bgCol)
+                if mode == 0x09:  # Character from G0 set (2.5, 3.5)
+                    # print('[decodeX260: mode 9] place character ' + hex(data) + " at (" + str(address) +", " + str(self.rowAddr) + ")")
+                    mapChar = tuple((self.rowAddr, address, data))
+                    self.addMapping(mapChar)
+                if mode == 0x0b:  # Line Drawing and Smoothed Mosaic Character
+                    # from the G3 Set at Levels 2.5 and 3.5. Level 1.5 should ignore this
+                    ch = data & 0x7f
+                    if ch >= 0x20 and ch < 0x60:
+                        ch = ch + 0xe700 - 0x20
+                    if ch >= 0x60 and ch < 0x80:
+                        ch = ch + 0xeee0 - 0x60
+                    mapChar = tuple((self.rowAddr, address, ch))
+                    self.addMapping(mapChar)
+                if mode == 0x0c:  # Display attributes
+                    print('[setLine] Display Attributes, data = ' + hex(data))
+                    if data & 0x10:  # invert colours
+                        ch = ch  # @todo placeholder
+                if mode == 0x0e:  # Font style. P94 Table 29
+                    # Data bit 2=italic 1=bold 0=proprotional
+                    # Probably can do them as tkinter font attributes
+                    ch = ch  # @todo
+                if mode == 0x0f:  # Character from the G2 Supplementary Set. Page 94
+                    g2char = MapLatinG2(data)
+                    mapChar = tuple((self.rowAddr, address, g2char))
+                    self.addMapping(mapChar)
+                if mode == 0x10:  # Character from G0 set (2.5, 3.5)
+                    print('[decodeX260: mode 10] place character ' + hex(data) + " at (" + str(address) + ", " + str(
+                        self.rowAddr) + ")")
+                    mapChar = tuple((self.rowAddr, address, ord('?')))
+                    self.addMapping(mapChar)
+                if mode > 0x10 and mode <= 0x1f:  # G0 character with diacritical mark
+                    self.colAddr = address
+                    dia = int(mode & 0x0f)
+                    # mapChar = tuple((self.rowAddr, self.colAddr, dia))
+                    mapChar = tuple((self.rowAddr, self.colAddr, ord(getdiacritical(chr(data), dia))))
+                    # need to re-implement this
+                    self.addMapping(mapChar)
+                    print("[mapChar] = " + str(mapChar[0]) + " " + str(mapChar[1]) + " " + str(mapChar[2]) + " ")
+
+    # Really need to make a better version of deham
+    # @param 8 bit number to deham
+    # @return 4 bit dehammed alue
+    def deham(self, value):
+        # Deham with NO checking! @todo Parity and error correction
+        b0 = (value & 0x02) >> 1
         b1 = (value & 0x08) >> 2
         b2 = (value & 0x20) >> 3
         b3 = (value & 0x80) >> 4
-        return b0+b1+b2+b3
-    
-    def decodeTriplet(self, b1, b2, b3): # ETS: Page 22, section 8.3
-        #b1 = self.reverse(b1)
-        #b2 = self.reverse(b2)
-        #b3 = self.reverse(b3)
+        return b0 + b1 + b2 + b3
+
+    def decodeTriplet(self, b1, b2, b3):  # ETS: Page 22, section 8.3
+        # b1 = self.reverse(b1)
+        # b2 = self.reverse(b2)
+        # b3 = self.reverse(b3)
         # Don't care about errors. Just remove the hamming bits
-        c1 = (b1 & 0x04) >> 2 | (b1 & 0x70) >> 3 # .XXX.X..
-        c2 = (b2 & 0x7f) << (8-4) # 4..10
-        c3 = (b3 & 0x7f) << (16-5) # 11..17
-        
+        c1 = (b1 & 0x04) >> 2 | (b1 & 0x70) >> 3  # .XXX.X..
+        c2 = (b2 & 0x7f) << (8 - 4)  # 4..10
+        c3 = (b3 & 0x7f) << (16 - 5)  # 11..17
+
         result = c1 | c2 | c3
-        #print ("b1 =" + hex(b1) + " b2 =" + hex(b2) + " b3 =" + hex(b3))                
-        #sprint ("c1 =" + hex(c1) + " c2 =" + hex(c2) + " c3 =" + hex(c3) + " " + hex(result))                
+        # print ("b1 =" + hex(b1) + " b2 =" + hex(b2) + " b3 =" + hex(b3))
+        # sprint ("c1 =" + hex(c1) + " c2 =" + hex(c2) + " c3 =" + hex(c3) + " " + hex(result))
         return result
-    
+
     # decode triplet in X/26 etc.
     # \param ix Triplet number 0 to 12
     def getTriplet(self, ix, pkt):
         i = (ix * 3) + 3
-        return self.decodeTriplet(pkt[i] & 0x7f, pkt[i+1] & 0x7f, pkt[i+2] & 0x7f)
-    
+        return self.decodeTriplet(pkt[i] & 0x7f, pkt[i + 1] & 0x7f, pkt[i + 2] & 0x7f)
+
     # debug
     def printTriplets(self, tr):
-        print("[debug] Triplet = ", end = '')
+        print("[debug] Triplet = ", end='')
         for t in range(13):
-            print(hex(tr[t]) + ' ', end = '')
+            print(hex(tr[t]) + ' ', end='')
         print()
 
     # @param pkt - An XX26/28.29 packet
@@ -308,32 +443,32 @@ class Packet:
     def decodeTriplets(self, pkt):
         arr = []
         for i in range(13):
-            arr.append( self.getTriplet(i, pkt) )
+            arr.append(self.getTriplet(i, pkt))
         return arr
 
     # dump a packet as hex
     def dumpPacket(self, pkt):
         # print('Dump: ' + f'{pkt[0]:02x}' + ' ' + f'{pkt[1]:02x}')
         print([f'{pkt[i]:02x}' for i in range(0, 42)])
-        
+
     # dump ALL the metadata in one handy chunk
     def dump(self):
         print("[Dump] Region = " + str(self.region))
         clut.dump()
         print("[Dump] diacritical count = " + str(len(self.X26CharMappings)))
-        print("[Dump] ColourTableRemapping = " + str(self.ColourTableRemapping)) # Table 33
-        
+        print("[Dump] ColourTableRemapping = " + str(self.ColourTableRemapping))  # Table 33
+
     # The clut is shared
     # Other metadata has access functions
-    
+
     # The region code number
     def getRegion(self):
         return self.region
-    
+
     ############## X/26 character mappings ###############
     def addMapping(self, mappedChar):
-        #print('TRACE A')
+        # print('TRACE A')
         self.X26CharMappings.append(mappedChar)
-        
-    
+
+
 metaData = Packet()
