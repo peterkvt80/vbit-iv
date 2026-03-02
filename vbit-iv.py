@@ -51,6 +51,10 @@ subCode = 0 # The current page subcode
 lastSubcode = 0 # The previous carousel page subcode
 rowCounter = 0 # Rows count for this page so far, except for rows after Double Height
 
+# Track what we last *displayed* (so we can clear when a new page/subpage header is captured)
+lastDisplayedPage = None
+lastDisplayedSubcode = None
+
 suppressHeader = False
 
 # remote
@@ -209,6 +213,7 @@ def process(pkt):
         Returns False if processing should stop early (e.g. HOLD mode).
         """
         global capturing, wasCapturing, elideRow, rowCounter, lastPacket, seeking, lastSubcode, suppressHeader
+        global lastDisplayedPage, lastDisplayedSubcode
 
         elideRow = 0  # new header, cancel any elide that might have happened
 
@@ -226,9 +231,18 @@ def process(pkt):
             lastPacket = packet
             suppressHeader = getC7(packet) > 0
 
-            if subcode != lastSubcode:
-                lastSubcode = subcode
+            # Clear down the old page when the *new* page/subpage header is captured.
+            # This prevents stale lines lingering when the new page does not transmit every row.
+            # is_new_display = (page != lastDisplayedPage) or (subcode != lastDisplayedSubcode)
+            is_new_display = (page != lastDisplayedPage) # don't clear during carouselling
+            if is_new_display:
+                lastDisplayedPage = page
+                lastDisplayedSubcode = subcode
                 ttx.clear()
+
+            #if subcode != lastSubcode:
+            lastSubcode = subcode
+            #    ttx.clear()
 
             wasCapturing = True
         else:
