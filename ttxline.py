@@ -47,7 +47,7 @@ class TTXline:
     components within a GUI application. It includes features such as font
     management, row and line manipulation for teletext pages, and basic rules for
     graphics and mosaic rendering. The class can also manage additional states like
-    concealed text, double-height rows, and side panels for specialized components.
+    concealed text, double-height rows, and side panels for specialised components.
 
     :ivar root: The root GUI component to which the teletext elements are attached.
     :type root: Any
@@ -229,12 +229,8 @@ class TTXline:
                 self.textConceal.insert(END, self._blank_row)
 
     # true if while in graphics mode, it is a mosaic character. False if control or upper case alpha
-    def isMosaic(self, ch):
-        return bool(ch & 0x20)  # Bit 6 set?
-
-    # PEP 8 alias; keep original name intact for compatibility
     def is_mosaic(self, ch):
-        return self.isMosaic(ch)
+        return bool(ch & 0x20)  # Bit 6 set?
 
     def dump(self, pkt):
         return
@@ -251,7 +247,7 @@ class TTXline:
     # @param packet : packet to write
     # @param row : row number to write (starting from 0)
     def setLine(self, pkt, row):
-        # ... existing code ...
+
         if row == 2:
             self.dump(pkt)
 
@@ -286,13 +282,23 @@ class TTXline:
 
         lastMosaicChar = " "
 
+        def _active_charset() -> tuple[int, int]:
+            """
+            Decide which (language_option, region) to use for mapchar().
+            - Header-derived language option: self.natOpt, region forced to 0
+            - Packet 28 override: metaData.defaultCharSetLanguage/defaultCharSetRegion
+            """
+            if metaData.defaultCharSetLanguage is not None and metaData.defaultCharSetRegion is not None:
+                return metaData.defaultCharSetLanguage, metaData.defaultCharSetRegion
+            return self.natOpt, 0
+
         #self.text.insert(tag_start, "        ") # This could be a big mistake
         #self.text.insert(tag_start, "        ")
 
         # PASS 1: put the characters in. Selects glyphs for alpha, contiguous gfx, separated gxf
         #print('[setLine] rendering row ' + str(row))
         for i in range(40):
-            c = pkt[i+2] & 0x7f # strip parity
+            c = pkt[i + 2] & 0x7f # strip parity
             # Convert control code ascii
             # @todo Regional mappings
             ch = chr(c)
@@ -311,7 +317,7 @@ class TTXline:
                 contiguous = False
             if graphicsMode:
                 # If it is a mosaic, work out what character it is
-                if self.isMosaic(c):
+                if self.is_mosaic(c):
                     if contiguous:
                         ch = chr(c + 0x0e680 - 0x20) # contiguous
                     else:
@@ -324,9 +330,10 @@ class TTXline:
                         if holdMode:
                             ch = holdChar # non printable and in hold
                         else:
-                            ch = ' ' # Non printable
+                            ch = " " # Non printable
                     else:
-                        ch = mapchar(ch, self.natOpt , metaData.getRegion()) # text in alpha mode @todo implement group number
+                        lang_opt, region = _active_charset()
+                        ch = mapchar(ch, lang_opt, region)  # text in alpha mode @todo implement
                         ch = mapdiacritical(ch, row, i, metaData.X26CharMappings)
                 # if it is not a mosaic and we are in hold mode, substitute the character
             else:
@@ -334,7 +341,8 @@ class TTXline:
                 if ch < ' ':
                     ch = ' '
                 else:
-                    ch = mapchar(ch, self.natOpt , metaData.getRegion()) # text in alpha mode @todo implement group number
+                    lang_opt, region = _active_charset()
+                    ch = mapchar(ch, lang_opt, region)  # text in alpha mode @todo implement group number
                     ch = mapdiacritical(ch, row, i, metaData.X26CharMappings)
 
             # Overwrite (do not insert): inserting shifts the line and can corrupt alignment over time
@@ -478,7 +486,6 @@ class TTXline:
         return hasDoubleHeight
 
     def decodeFlags(self, packet):
-        return
         flags = [0,0,0,0,0,0,0,0,0]
         for i in range(8):
             flags[i] = deham(packet[i+2])
@@ -489,10 +496,26 @@ class TTXline:
         C5 = (flags[5] & 0x04) > 0 # newsflash
         self.natOpt = (flags[7] >> 1) & 0x07 # C12, C13, C14
         C11 = flags[7] & 0x01 # Serial tx
-        print("Page = " + hex(page) + ", C4(clear) = " + str(C4) + ", C5 = " + str(C5) + " natOpt = " + str(self.natOpt))
+        print(
+            "Page = "
+            + hex(page)
+            + ", C4(clear) = "
+            + str(C4)
+            + ", C5 = "
+            + str(C5)
+            + " natOpt = "
+            + str(self.natOpt)
+        )
+        return {
+            "page": page,
+            "clear": C4,
+            "newsflash": C5,
+            "natOpt": self.natOpt,
+            "serial": C11,
+        }
 
     # param page - An 8 character info string for the start of the header
-    def printHeader(self, packet, page = "Header..", seeking = False, suppressHeader = False):
+    def print_header(self, packet, page ="Header..", seeking = False, suppressHeader = False):
         if self.clearFlag:
             self.clearFlag = False
 
@@ -502,7 +525,7 @@ class TTXline:
         # 'end' points one line beyond the last character; allow DISPLAY_LINES + 2 safely.
         # (DISPLAY_LINES+1 real lines => end is at (DISPLAY_LINES+2).0)
         if line > (self.DISPLAY_LINES + 2):
-            print(f"[printHeader] {line} Too many lines. Some bug somewhere!")
+            print(f"[print_header] {line} Too many lines. Some bug somewhere!")
 
         self.text.config(state=NORMAL)
         buf = bytearray(packet)  # convert to bytearray so we can modify it
@@ -532,7 +555,7 @@ class TTXline:
             self.found = False
         else:
             if not self.found:
-                #print("[ttxline::printHeader] Calling clear")
+                print("[ttxline::printHeader] Calling clear")
                 #self.clear("new header")
                 self.currentHeader = buf # The whole header is updating
                 self.found = True
@@ -599,6 +622,11 @@ class TTXline:
     def clear(self, reason):
         self.clearFlag = True
         metaData.clear()
+
+        # A clear marks the start of a new page/subpage, so the next header
+        # must be re-latched and flags re-decoded (natOpt/language, etc.).
+        self.found = False
+        self.currentHeader = bytearray(42)
 
         # Do NOT delete all widget content; that destroys the row structure.
         self.text.config(state=NORMAL)

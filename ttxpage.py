@@ -9,6 +9,40 @@ from ttxline import TTXline
 
 
 class TTXpage:
+    """
+    Represents a Teletext Page Management System.
+
+    The `TTXpage` class is responsible for managing the teletext page interface,
+    handling user interactions through keyboard input, and processing teletext
+    packets for decoding and rendering. The class facilitates various key
+    operations such as decoding fastext links, configuring display geometry,
+    and managing teletext page attributes.
+
+    :ivar MIN_ROW: The minimum row index for teletext rendering.
+    :type MIN_ROW: int
+    :ivar MAX_ROW: The maximum row index for teletext rendering.
+    :type MAX_ROW: int
+    :ivar FASTEXT_LINK_COUNT: The number of fastext links supported.
+    :type FASTEXT_LINK_COUNT: int
+    :ivar root: The root Tkinter application window for the teletext interface.
+    :type root: tkinter.Tk
+    :ivar screen_width: The width of the current monitor in pixels.
+    :type screen_width: int
+    :ivar screen_height: The height of the current monitor in pixels.
+    :type screen_height: int
+    :ivar lines: Represents the line manager for rendering teletext contents.
+    :type lines: TTXline
+    :ivar mag: List of magazine numbers for fastext links.
+    :type mag: list[Optional[int]]
+    :ivar page: List of page numbers for fastext links.
+    :type page: list[Optional[int]]
+    :ivar buffer: List of buffered keyboard input characters.
+    :type buffer: list[str]
+    :ivar rowAddr: The row address for teletext rendering.
+    :type rowAddr: int
+    :ivar colAddr: The column address for teletext rendering.
+    :type colAddr: int
+    """
     # Teletext layout constants
     MIN_ROW: int = 0
     MAX_ROW: int = 24
@@ -75,15 +109,6 @@ class TTXpage:
                 return monitor
         return monitors[0]
 
-    # ... existing code ...
-
-    # Backwards-compatible wrappers (avoid breaking existing call sites)
-    def getPage(self, index):
-        return self.get_page(index)
-
-    def getMag(self, index):
-        return self.get_mag(index)
-
     def get_page(self, index: int) -> Optional[int]:
         """Return the page number for the fastext link selected by index."""
         return self.page[index]
@@ -110,11 +135,8 @@ class TTXpage:
             return False
         return self.lines.printRow(packet, row)
 
-    def printHeader(self, packet, page, seeking, suppress=False):
-        self.print_header(packet, page, seeking, suppress)
-
     def print_header(self, packet, page, seeking: bool, suppress: bool = False) -> None:
-        self.lines.printHeader(packet, page, seeking, suppress)
+        self.lines.print_header(packet, page, seeking, suppress)
 
     def mainLoop(self):
         self.main_loop()

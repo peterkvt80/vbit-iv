@@ -2,7 +2,7 @@
 
 # T42 Teletext Stream to In-vision decoder
 #
-# Copyright (c) 2020-2021 Peter Kwan
+# Copyright (c) 2020-2026 Peter Kwan
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -124,27 +124,27 @@ def remote(ch):
     if ch == 'q' or ord(ch) == 27: # quit
         exit()
     if ch == 'P' or ch == 'u': # f1 red link
-        currentMag = ttx.getMag(0)
-        currentPage = ttx.getPage(0)
+        currentMag = ttx.get_mag(0)
+        currentPage = ttx.get_page(0)
         print(str(currentMag) + " " + hex(currentPage))
         seeking = True
         ttx.clear() # Doubt we want to do this!
         return
     if ch == 'Q'  or ch == 'i': # f2: green link
-        currentMag = ttx.getMag(1)
-        currentPage = ttx.getPage(1)
+        currentMag = ttx.get_mag(1)
+        currentPage = ttx.get_page(1)
         print(str(currentMag) + " " + hex(currentPage))
         seeking = True
         return
     if ch == 'R' or ch == 'o': # f3 yellow link
-        currentMag = ttx.getMag(2)
-        currentPage = ttx.getPage(2)
+        currentMag = ttx.get_mag(2)
+        currentPage = ttx.get_page(2)
         print(str(currentMag) + " " + hex(currentPage))
         seeking = True
         return
     if ch == 'S' or ch == 'p': # f4 cyan link
-        currentMag = ttx.getMag(3)
-        currentPage = ttx.getPage(3)
+        currentMag = ttx.get_mag(3)
+        currentPage = ttx.get_page(3)
         print(str(currentMag) + " " + hex(currentPage))
         seeking = True
         return
@@ -161,7 +161,7 @@ def remote(ch):
             seeking = True # @todo If we select the page we are already on
         page_number = 'P' + pageNum
         print("page number = " + page_number)
-        ttx.printHeader(lastPacket,  page_number+'    ', seeking, False)
+        ttx.print_header(lastPacket,  page_number+'    ', seeking, False)
     if ch=='d':
         metaData.dump()
     else:
@@ -172,12 +172,25 @@ def remote(ch):
 
 # \param pkt - raw T42 packet to process
 def process(pkt):
+    """
+    Processes a teletext packet and handles it based on its type and current capturing state.
+
+    :param pkt: The teletext packet to process. Its length must meet the minimum packet length.
+    :type pkt: bytes
+
+    :raises ValueError: Raised if the packet length is less than the required minimum length.
+    :raises RuntimeError: Raised if there is an issue decoding specific packet rows or unsupported
+        packet types are encountered.
+
+    :return: This function does not return any values. It controls the flow of processing teletext
+        packets and instructs appropriate handling for headers and body rows.
+    """
     global capturing
     global wasCapturing
     global currentMag
     global currentPage
     global elideRow
-    global rowCounter # Counts the rows, except the rows following a double height row
+    global rowCounter  # Counts the rows, except the rows following a double height row
     global lastPacket
     global seeking
     global holdMode
@@ -186,104 +199,107 @@ def process(pkt):
     global clut
     global suppressHeader
 
-    if len(pkt) < 42: # Quit if we don't have a full packet
+    MIN_PACKET_BYTES = 42
+    HEADER_ROW = 0
+    LAST_DISPLAY_ROW_EXCLUSIVE = 25  # rows 0..24 inclusive are displayable
+
+    def _handle_header(packet: bytes) -> bool:
+        """
+        Handle row 0 header packets.
+        Returns False if processing should stop early (e.g. HOLD mode).
+        """
+        global capturing, wasCapturing, elideRow, rowCounter, lastPacket, seeking, lastSubcode, suppressHeader
+
+        elideRow = 0  # new header, cancel any elide that might have happened
+
+        if holdMode:
+            ttx.print_header(lastPacket, "HOLD    ", False, False)
+            return False
+
+        page = decodePage(packet)
+        subcode = decodeSubcode(packet)  # Used to clear down page if changed. Also clears X26 char map
+
+        capturing = (currentPage == page)
+        if capturing:
+            rowCounter = 0
+            seeking = False  # Capture starts if this is the right page
+            lastPacket = packet
+            suppressHeader = getC7(packet) > 0
+
+            if subcode != lastSubcode:
+                lastSubcode = subcode
+                ttx.clear()
+
+            wasCapturing = True
+        else:
+            # If we have fewer rows because of double height, we must blank the extra lines
+            if wasCapturing:
+                wasCapturing = False
+
+        if seeking:
+            suppressHeader = False
+            clut.reset()  # @todo Do we need to save colours in some cases?
+
+        page_label = "P{:1d}{:02X}    ".format(currentMag, currentPage)
+        ttx.print_header(packet, page_label, seeking, suppressHeader)
+        return True
+
+    def _handle_body_row(packet: bytes, packet_row: int) -> bool:
+        """
+        Handle non-header rows.
+        Returns False if we should stop early (elided row).
+        """
+        global elideRow, rowCounter
+
+        # If we hit a row that follows a double height, skip the packet
+        if elideRow > 0 and elideRow == packet_row:
+            ttx.mainLoop()
+            print("[vbit-iv]eliding row= " + str(elideRow) + " rowCounter = " + str(rowCounter))
+            elideRow = 0
+            return False
+
+        if not capturing:
+            return True
+
+        if packet_row < LAST_DISPLAY_ROW_EXCLUSIVE:
+            if ttx.printRow(packet, packet_row):  # printable row. Is it double height?
+                elideRow = packet_row + 1
+            rowCounter += 1
+
+        if packet_row == 26:
+            print("process packet26 called")
+            metaData.decode(packet, 26)
+        elif packet_row == 27:  # fastext
+            ttx.decodeLinks(packet)
+        elif packet_row == 28:  # region / metadata
+            metaData.decode(packet, 28)
+        elif packet_row == 29:
+            print("Unsupported packet type = " + str(packet_row))
+        elif packet_row == 30:
+            print("Unsupported packet type = " + str(packet_row))
+
+        return True
+
+    if len(pkt) < MIN_PACKET_BYTES:  # Quit if we don't have a full packet
         print("invalid teletext packet")
-        exit()
-    result = mrag(pkt[0], pkt[1])
-    mag = result[0]
-    row = result[1]
-    # If this is a header, decode the page
+        return
+
+    mag, row = mrag(pkt[0], pkt[1])
 
     # only display things that are on our magazine
-    if currentMag == mag: # assume parallel mode
-        if row == 0: # Is this a header?
-            elideRow = 0 # new header, cancel any elide that might have happened
-            if holdMode:
-                ttx.printHeader(lastPacket, "HOLD    ", False, False)
-                return
-#      print("\033[0;0fP", end='')
-            # is this the page that we want?
-            page = decodePage(pkt)
-            subcode = decodeSubcode(pkt) # Used to clear down page if changed. Also clears X26 char map
-            # This is where we need to grab transmission flags @todo
-            capturing = currentPage == page
-            if capturing:
-                rowCounter = 0
-                seeking = False # Capture starts if this is the right page
-                lastPacket = pkt
-                suppressHeader = getC7(pkt)>0
-                if subcode != lastSubcode:
-                    lastSubcode = subcode
-                    ttx.clear()
-                wasCapturing = True
-            else:
-                # If we have fewer rows because of double height, we must blank the extra lines
-                if wasCapturing:
-                    wasCapturing = False
-                    print("[vbit-iv::process] Page load completed. rowCounter = " + str(rowCounter))
-                    # Got rowCounter lines when we expected
-                    #if rowCounter<24: # THIS DOESN'T WORK :-(
-                        #for i in range(rowCounter+2, 24+2):
-                            #print("[vbit-iv process] erase line " + str(i))
-                        #ttx.printRow(b"QQxxxxxxxxxxyyyyyyyyyyzzzzzzzzzzkkkkkkkkkk", 24)
-            if seeking:
-                suppressHeader = False
+    if currentMag != mag:  # assume parallel mode
+        ttx.mainLoop()
+        return
 
-                #ttx.lines.clearX26()
-                clut.reset() # @todo Do we need to save colours in some cases?
-                # print("sub-code = " + hex(subcode))
+    if row == HEADER_ROW:
+        if not _handle_header(pkt):
+            return
+    else:
+        if not _handle_body_row(pkt, row):
+            return
 
-
-            #if not seeking: # new header starts rendering the page
-            #    clearPage() # @todo Decode header flagsallow-hotplug can0
-
-            # @todo Don't clear if the page is already loaded
-            #printRow(pkt, 0, 0, "P{:1d}{:02X}    ".format(currentMag,currentPage))
-            elideRow = 0
-            # Show the whole header if we are capturing. Otherwise just show the clock
-            ttx.printHeader(pkt,  "P{:1d}{:02X}    ".format(currentMag,currentPage), seeking, suppressHeader)
-            #if capturing:
-            #printRow(packet, 0, 0, "{:1d}{:02X}".format(mag,page))
-            # print("\033[2J", end='') # clear screen
-                #printRow(packet)
-        else: # not a header
-            #print("TRACE GA")
-            # If we hit a row that follows a double height, skip the packet
-            # Deeply suspect that this is removing too many rows
-            if elideRow>0 and elideRow == row:
-                ttx.mainLoop()
-                print("[vbit-iv]eliding row= " + str(elideRow) + " rowCounter = " + str(rowCounter))
-                elideRow=0
-                return
-
-
-        # @todo Need to copy all pages until a new header arrives
-            if capturing:
-                if row < 25:
-                    #dump(pkt, row)
-                    if ttx.printRow(pkt, row): # printable row. Is it double height?
-                        elideRow = row + 1
-                    rowCounter = rowCounter + 1 # increment the printed row count
-                    # print("[vbit-iv] row = " + str(row) + " row length ="+ str(len(pkt)))
-                if row == 26:
-                    # ttx.decodeRow26(pkt) # @todo TO BE REPLACED
-                    print("process packet26 called")
-                    metaData.decode(pkt, 26)
-                if row == 27: # fastext
-                    ttx.decodeLinks(pkt) # @todo TO BE REPLACED
-                if row == 28: # region
-                    # ttx.decodeRow28(pkt) # @todo TO BE REPLACED
-                    metaData.decode(pkt, 28)
-                if row == 29: #
-                    print("Unsupported packet type = " + str(row))
-                if row == 30: #
-                    print("Unsupported packet type = " + str(row))
-                if row == 31: #
-                    print("Unsupported packet type = " + str(row))
-                        # Page 32
-#ETS 300 706: May 1997
+    # ETS 300 706: May 1997
     ttx.mainLoop()
-
 # Local control
 
 
