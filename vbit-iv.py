@@ -60,6 +60,9 @@ suppressHeader = False
 # remote
 pageNum = "100"
 
+# While the user is typing digits, we show them in the header (green) and do NOT show HOLD.
+pageEntryActive = False
+
 ttx = TTXpage()
 
 print(sys.argv)
@@ -117,10 +120,18 @@ def remote(ch):
     global lastPacket
     global seeking
     global holdMode
+    global pageEntryActive
+
     if ch == '':
         return
+
     if ch == 'h': # hold
         holdMode = not holdMode
+        pageEntryActive = False  # HOLD overrides any in-progress entry display
+        if holdMode:
+            # Force immediate visual feedback: show HOLD right now.
+            ttx.print_header(lastPacket, "HOLD    ", True, False)
+            ttx.mainLoop()
         return
     if ch == 'r': # reveal-oh
         ttx.toggleReveal()
@@ -128,6 +139,8 @@ def remote(ch):
     if ch == 'q' or ord(ch) == 27: # quit
         exit()
     if ch == 'P' or ch == 'u': # f1 red link
+        holdMode = False
+        pageEntryActive = False
         currentMag = ttx.get_mag(0)
         currentPage = ttx.get_page(0)
         print(str(currentMag) + " " + hex(currentPage))
@@ -135,44 +148,56 @@ def remote(ch):
         ttx.clear() # Doubt we want to do this!
         return
     if ch == 'Q'  or ch == 'i': # f2: green link
+        holdMode = False
+        pageEntryActive = False
         currentMag = ttx.get_mag(1)
         currentPage = ttx.get_page(1)
         print(str(currentMag) + " " + hex(currentPage))
         seeking = True
         return
     if ch == 'R' or ch == 'o': # f3 yellow link
+        holdMode = False
+        pageEntryActive = False
         currentMag = ttx.get_mag(2)
         currentPage = ttx.get_page(2)
         print(str(currentMag) + " " + hex(currentPage))
         seeking = True
         return
     if ch == 'S' or ch == 'p': # f4 cyan link
+        holdMode = False
+        pageEntryActive = False
         currentMag = ttx.get_mag(3)
         currentPage = ttx.get_page(3)
         print(str(currentMag) + " " + hex(currentPage))
         seeking = True
         return
-    if ch>='0' and ch<='9':
-        pageNum = pageNum + ch
-        pageNum = pageNum[1:4]
-        print ("Pagenum= " + pageNum)
-        # validate
-        if pageNum[0]>'0' and pageNum[0]<'9': # valid mag
+    if ch >= '0' and ch <= '9':
+        # Start/continue page entry mode
+        pageEntryActive = True
+
+        # Shift in digit (keep last 3)
+        pageNum = (pageNum + ch)[-3:]
+        print("Pagenum= " + pageNum)
+
+        # Show partial entry in GREEN (force seeking=True)
+        ttx.print_header(lastPacket, "P" + pageNum + "    ", True, False)
+        ttx.mainLoop()
+
+        # If we now have a valid magazine digit, commit the navigation target.
+        # Once the page is ready to load, release HOLD automatically.
+        if '1' <= pageNum[0] <= '8':
             currentMag = int(pageNum[0])
-            currentPage = int(pageNum[1:3],16)
-            print ("mag, page = " + str(currentMag)+', '+hex(currentPage))
-            # send the last header again, just so we can update the target page number
-            seeking = True # @todo If we select the page we are already on
-        page_number = 'P' + pageNum
-        print("page number = " + page_number)
-        ttx.print_header(lastPacket,  page_number+'    ', seeking, False)
+            currentPage = int(pageNum[1:3], 16)
+            print("mag, page = " + str(currentMag) + ', ' + hex(currentPage))
+            seeking = True
+            holdMode = False
+            pageEntryActive = False
+        return
     if ch=='d':
         metaData.dump()
-    else:
-        print("[vbit-iv] Unhandled remote code: " + ch)
-        # @todo Reveal, Fastext, Hold, Double height, Page up, Page Down, Mix
-    #if seeking:
-    #    ttx.clear()
+        return
+    print("[vbit-iv] Unhandled remote code: " + ch)
+    # @todo Reveal, Fastext, Hold, Double height, Page up, Page Down, Mix
 
 # \param pkt - raw T42 packet to process
 def process(pkt):
@@ -202,10 +227,27 @@ def process(pkt):
     global lastSubcode
     global clut
     global suppressHeader
+    global pageEntryActive
 
     MIN_PACKET_BYTES = 42
     HEADER_ROW = 0
     LAST_DISPLAY_ROW_EXCLUSIVE = 25  # rows 0..24 inclusive are displayable
+
+    if len(pkt) < MIN_PACKET_BYTES:  # Quit if we don't have a full packet
+        print("invalid teletext packet")
+        return
+
+    # If the user is typing a page number, show that and do not show HOLD.
+    # Also freeze the page content while typing (keeps display stable).
+    if pageEntryActive:
+        ttx.mainLoop()
+        return
+
+    # HOLD freezes the display. Show HOLD in green.
+    if holdMode:
+        ttx.print_header(lastPacket, "HOLD    ", True, False)
+        ttx.mainLoop()
+        return
 
     def _handle_header(packet: bytes) -> bool:
         """
@@ -216,10 +258,6 @@ def process(pkt):
         global lastDisplayedPage, lastDisplayedSubcode
 
         elideRow = 0  # new header, cancel any elide that might have happened
-
-        if holdMode:
-            ttx.print_header(lastPacket, "HOLD    ", False, False)
-            return False
 
         page = decodePage(packet)
         subcode = decodeSubcode(packet)  # Used to clear down page if changed. Also clears X26 char map

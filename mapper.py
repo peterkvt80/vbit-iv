@@ -21,7 +21,7 @@
 # SOFTWARE.
 #
 #
-# Maps characters to according to region and group to the glyph in teletext2.ttf 
+# Maps characters according to region and group to the glyph in teletext2.ttf
 
 # \param c : character to map
 # \param option : national option number 0..7
@@ -407,7 +407,7 @@ def mapHE(c):  # Hebrew region 10, option 5
     return _HE_SYMBOL_MAP.get(c, c)
 
 # --- option dispatch tables (defined after functions they reference) ---
-
+# Note that the bit order is reversed as from ETS 300706 Table 32
 _REGION0_OPTIONS = {0: mapEN, 1: mapFR, 2: mapSE, 3: mapCZ, 4: mapDE, 5: mapES, 6: mapIT, 7: mapEN}
 _REGION1_OPTIONS = {0: mapPL, 1: mapFR, 2: mapSE, 3: mapCZ, 4: mapDE, 5: mapPL, 6: mapIT, 7: mapPL}
 _REGION2_OPTIONS = {0: mapEN, 1: mapFR, 2: mapSE, 3: mapTR, 4: mapDE, 5: mapES, 6: mapIT, 7: mapEN}

@@ -50,10 +50,12 @@ class Packet:
         self.ColourTableRemapping = 0  # clut swap
         self.leftSidePanel = True  # These should default to False for level 1
         self.rightSidePanel = True
+
         # Packet 28: default character set designation (7-bit: region(4) + language(3))
         self.defaultCharSet = None
         self.defaultCharSetRegion = None
         self.defaultCharSetLanguage = None
+
         clut.reset()
 
     def mapColourFg(self, row, column, colour):
@@ -156,13 +158,21 @@ class Packet:
         # Decode everything and decide if we want to do anything with it later
         t = triplets[0]
         function = t & 0x0f  #
-        coding = (t > 4) & 0x07  # page coding (7 bits + parity)
-        G0G2 = (t >> 8) & 0x7f  # The lowest three bits are don't care
+        coding = (t >> 4) & 0x07  # page coding (fix: shift, not compare)
+
+        G0G2_raw = (t >> 7) & 0x7f  # The lowest three bits are don't care
+
+        # Split 7-bit value into region (high 4) and option/language (low 3)
+        region = (G0G2_raw >> 3) & 0x0f
+        opt = G0G2_raw & 0x07
+
+        # ETS table 32 language bits are reversed (swap b0 and b2, keep b1)
+        opt_reversed = ((opt & 0x01) << 2) | (opt & 0x02) | ((opt & 0x04) >> 2)
 
         # Expose packet-28 charset designation explicitly (region+language)
-        self.defaultCharSet = G0G2
-        self.defaultCharSetRegion = (G0G2 >> 3) & 0x0f
-        self.defaultCharSetLanguage = G0G2 & 0x07
+        self.defaultCharSet = (region << 3) | opt_reversed
+        self.defaultCharSetRegion = region
+        self.defaultCharSetLanguage = opt_reversed
 
         self.region = (t >> 10) & 0x0f  # This is the RE region number in tti files.
 
@@ -172,8 +182,8 @@ class Packet:
         secondG0 = secondG0 | t & 0x07
         self.leftSidePanel = t & 0x08 > 0
         self.rightSidePanel = t & 0x10 > 0
-        print("* coding = " + str(coding) + " secondG0 = " + str(secondG0) + " leftPanel = " + str(
-            self.leftSidePanel) + " rightPanel = " + str(self.rightSidePanel))
+        #print("* coding = " + str(coding) + " secondG0 = " + str(secondG0) + " leftPanel = " + str(
+        #  self.leftSidePanel) + " rightPanel = " + str(self.rightSidePanel))
         sidePanelStatus = t & 0x20 > 0  # Level 3.5 only
         sidePanelColumns = t & 0x1c >> 6  # Number of columns in side panels
         print("* sidePanelStatus = " + str(sidePanelStatus) + " sidePanelColumns = " + str(sidePanelColumns))

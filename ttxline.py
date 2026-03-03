@@ -289,6 +289,7 @@ class TTXline:
             - Packet 28 override: metaData.defaultCharSetLanguage/defaultCharSetRegion
             """
             if metaData.defaultCharSetLanguage is not None and metaData.defaultCharSetRegion is not None:
+                print ("[ttxline::_active_charset] option = " + str(metaData.defaultCharSetLanguage) + " region = " + str(metaData.defaultCharSetRegion))
                 return metaData.defaultCharSetLanguage, metaData.defaultCharSetRegion
             return self.natOpt, 0
 
@@ -570,7 +571,19 @@ class TTXline:
             #    self.pageLoaded = True
             buf = self.currentHeader # The header stays on the loaded page
 
+        print(buf[:12])
         self.setLine(buf, 0)
+
+        # Re-enable before tag operations (setLine() disables the widget)
+        self.text.config(state=NORMAL)
+        try:
+            self.textConceal.config(state=NORMAL)
+        except Exception:
+            pass
+
+        # Colour the page label where it is actually rendered (offsetSplit-based).
+        page_start = f"1.{self.offsetSplit}"
+        page_end = f"1.{self.offsetSplit + 8}"
 
         # Now that the buffer has the correct characters loaded, we can set the generated page number
         #@todo Change the colour of the page number while seeking a page
@@ -580,18 +593,28 @@ class TTXline:
         # self.text.insert("1.4", "    ") # pad the remaining space
         #self.text.tag_add("pageColour", "1.0", "1.7")
         if seeking or page[0] == 'H': # Page number goes green in HOLD or while seeking
-            self.text.tag_add("pagenumber", "1.0", "1.7")
+            self.text.tag_add("pagenumber", page_start, page_end)
             self.text.tag_config("pagenumber", foreground = "green1") # seeking
-            self.textConceal.tag_add("pagenumberc", "1.0", "1.7")
+            self.text.tag_raise("pagenumber")
+
+            self.textConceal.tag_add("pagenumberc", page_start, page_end)
             self.textConceal.tag_config("pagenumberc", foreground = "green1") # seeking
+            self.textConceal.tag_raise("pagenumberc")
         else:
-            self.text.tag_add("pagenumber", "1.0", "1.7")
+            self.text.tag_add("pagenumber", page_start, page_end)
             self.text.tag_config("pagenumber", foreground = "white") # found
-            self.textConceal.tag_add("pagenumberc", "1.0", "1.7")
+            self.text.tag_raise("pagenumber")
+
+            self.textConceal.tag_add("pagenumberc", page_start, page_end)
             self.textConceal.tag_config("pagenumberc", foreground = "white") # found
+            self.textConceal.tag_raise("pagenumberc")
 
         self.rowOffset = 0
         self.text.config(state = DISABLED)
+        try:
+            self.textConceal.config(state=DISABLED)
+        except Exception:
+            pass
 
     # Return True if the row includes double height
     def printRow(self, packet, row):
