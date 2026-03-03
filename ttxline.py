@@ -282,16 +282,39 @@ class TTXline:
 
         lastMosaicChar = " "
 
-        def _active_charset() -> tuple[int, int]:
+        def _primary_charset() -> tuple[int, int]:
             """
-            Decide which (language_option, region) to use for mapchar().
-            - Header-derived language option: self.natOpt, region forced to 0
-            - Packet 28 override: metaData.defaultCharSetLanguage/defaultCharSetRegion
+            Primary G0 charset (region/option):
+            - If X/28 is present, use its default G0 region/option
+            - Else fall back to header natOpt, region 0
             """
             if metaData.defaultCharSetLanguage is not None and metaData.defaultCharSetRegion is not None:
-                print ("[ttxline::_active_charset] option = " + str(metaData.defaultCharSetLanguage) + " region = " + str(metaData.defaultCharSetRegion))
                 return metaData.defaultCharSetLanguage, metaData.defaultCharSetRegion
             return self.natOpt, 0
+
+        def _secondary_charset() -> tuple[int, int]:
+            """
+            Secondary G0 charset (region/option) from X/28, if present.
+            If absent, fall back to primary (so ESC becomes a harmless toggle).
+            """
+            if metaData.secondG0CharSetLanguage is not None and metaData.secondG0CharSetRegion is not None:
+                return metaData.secondG0CharSetLanguage, metaData.secondG0CharSetRegion
+            return _primary_charset()
+
+        # Second G0 toggle state:
+        # At the start of each line, we use the FIRST G0 set (primary).
+        use_second_g0 = False
+
+        #def _active_charset() -> tuple[int, int]:
+        #    """
+        #    Decide which (language_option, region) to use for mapchar().
+        #    - Header-derived language option: self.natOpt, region forced to 0
+        #    - Packet 28 override: metaData.defaultCharSetLanguage/defaultCharSetRegion
+        #    """
+        #    if metaData.defaultCharSetLanguage is not None and metaData.defaultCharSetRegion is not None:
+        #        print ("[ttxline::_active_charset] option = " + str(metaData.defaultCharSetLanguage) + " region = " + str(metaData.defaultCharSetRegion))
+        #        return metaData.defaultCharSetLanguage, metaData.defaultCharSetRegion
+        #    return self.natOpt, 0
 
         #self.text.insert(tag_start, "        ") # This could be a big mistake
         #self.text.insert(tag_start, "        ")
@@ -301,7 +324,12 @@ class TTXline:
         for i in range(40):
             c = pkt[i + 2] & 0x7f # strip parity
             # Convert control code ascii
-            # @todo Regional mappings
+
+            # ESC toggles between primary and secondary G0 for subsequent characters on this line.
+            # The ESC itself is not displayed.
+            if c == 0x1B:
+                use_second_g0 = not use_second_g0
+                c = 0x20  # treat as space for rendering
             ch = chr(c)
             if c < 0x08 or c >= 0x10 and c < 0x18: # colour codes cancel conceal mode
                 concealed = False
@@ -333,7 +361,10 @@ class TTXline:
                         else:
                             ch = " " # Non printable
                     else:
-                        lang_opt, region = _active_charset()
+                        if use_second_g0:
+                            lang_opt, region = _secondary_charset()
+                        else:
+                            lang_opt, region = _primary_charset()
                         ch = mapchar(ch, lang_opt, region)  # text in alpha mode @todo implement
                         ch = mapdiacritical(ch, row, i, metaData.X26CharMappings)
                 # if it is not a mosaic and we are in hold mode, substitute the character
@@ -342,7 +373,10 @@ class TTXline:
                 if ch < ' ':
                     ch = ' '
                 else:
-                    lang_opt, region = _active_charset()
+                    if use_second_g0:
+                        lang_opt, region = _secondary_charset()
+                    else:
+                        lang_opt, region = _primary_charset()
                     ch = mapchar(ch, lang_opt, region)  # text in alpha mode @todo implement group number
                     ch = mapdiacritical(ch, row, i, metaData.X26CharMappings)
 
@@ -571,7 +605,7 @@ class TTXline:
             #    self.pageLoaded = True
             buf = self.currentHeader # The header stays on the loaded page
 
-        print(buf[:12])
+        # print(buf[:12])
         self.setLine(buf, 0)
 
         # Re-enable before tag operations (setLine() disables the widget)

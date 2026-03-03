@@ -56,6 +56,11 @@ class Packet:
         self.defaultCharSetRegion = None
         self.defaultCharSetLanguage = None
 
+        # Packet 28: second G0 character set designation (7-bit: region(4) + language(3))
+        self.secondG0CharSet = None
+        self.secondG0CharSetRegion = None
+        self.secondG0CharSetLanguage = None
+
         clut.reset()
 
     def mapColourFg(self, row, column, colour):
@@ -157,10 +162,10 @@ class Packet:
 
         # Decode everything and decide if we want to do anything with it later
         t = triplets[0]
-        function = t & 0x0f  #
-        coding = (t >> 4) & 0x07  # page coding (fix: shift, not compare)
+        function = t & 0x0f  # t1, 1..4
+        coding = (t >> 4) & 0x07  # page coding (fix: shift, not compare) t1, 5..7
 
-        G0G2_raw = (t >> 7) & 0x7f  # The lowest three bits are don't care
+        G0G2_raw = (t >> 7) & 0x7f  # The lowest three bits are don't care t1, 8..14
 
         # Split 7-bit value into region (high 4) and option/language (low 3)
         region = (G0G2_raw >> 3) & 0x0f
@@ -174,12 +179,26 @@ class Packet:
         self.defaultCharSetRegion = region
         self.defaultCharSetLanguage = opt_reversed
 
+
         self.region = (t >> 10) & 0x0f  # This is the RE region number in tti files.
 
-        print("[Packet::decodeX280Format1] region = " + str(self.region))
-        secondG0 = ((t >> 14) & 0x0f) << 3  # 7 bit value defined in table 33.
+        # ---------------- Second G0G2 ------------------
+        secondG0 = ((t >> 14) & 0x0f)  # 7 bit value defined in table 33. // t1, 15..18, t2, 1-3
         t = triplets[1]
-        secondG0 = secondG0 | t & 0x07
+        secondG0 = secondG0 | (t & 0x07) << 4
+
+
+        second_region = (secondG0 >> 3) & 0x0f
+        second_opt = secondG0 & 0x07
+        second_opt_reversed = ((second_opt & 0x01) << 2) | (second_opt & 0x02) | ((second_opt & 0x04) >> 2)
+
+        self.secondG0CharSet = (second_region << 3) | second_opt_reversed
+        self.secondG0CharSetRegion = second_region
+        self.secondG0CharSetLanguage = second_opt_reversed
+
+        print("[Packet::decodeX280Format1] region:opt = " + str(self.region) + ":" + str(opt_reversed) +
+                  "   " + str(second_region) + ":" + str(second_opt_reversed))
+
         self.leftSidePanel = t & 0x08 > 0
         self.rightSidePanel = t & 0x10 > 0
         #print("* coding = " + str(coding) + " secondG0 = " + str(secondG0) + " leftPanel = " + str(
@@ -421,6 +440,24 @@ class Packet:
         b3 = (value & 0x80) >> 4
         return b0 + b1 + b2 + b3
 
+    @staticmethod
+    def reverse(value: int) -> int:
+        """Reverse the bit order in a byte (8-bit)."""
+        value &= 0xFF
+        value = ((value & 0xF0) >> 4) | ((value & 0x0F) << 4)
+        value = ((value & 0xCC) >> 2) | ((value & 0x33) << 2)
+        value = ((value & 0xAA) >> 1) | ((value & 0x55) << 1)
+        return value
+
+    @classmethod
+    def reverse7(cls, value: int) -> int:
+        """
+        Reverse the bit order of a 7-bit value.
+        Input is assumed to be in bits 0..6 (bit 7 clear).
+        """
+        v7 = value & 0x7F
+        return (cls.reverse(v7) >> 1) & 0x7F
+
     def decodeTriplet(self, b1, b2, b3):  # ETS: Page 22, section 8.3
         # b1 = self.reverse(b1)
         # b2 = self.reverse(b2)
@@ -439,7 +476,8 @@ class Packet:
     # \param ix Triplet number 0 to 12
     def getTriplet(self, ix, pkt):
         i = (ix * 3) + 3
-        return self.decodeTriplet(pkt[i] & 0x7f, pkt[i + 1] & 0x7f, pkt[i + 2] & 0x7f)
+        # Pass already-parity-stripped bytes (decodeTriplet expects 0..127 values for reverse7)
+        return self.decodeTriplet(pkt[i] & 0x7F, pkt[i + 1] & 0x7F, pkt[i + 2] & 0x7F)
 
     # debug
     def printTriplets(self, tr):
