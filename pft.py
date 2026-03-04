@@ -30,7 +30,7 @@
 # 105 15
 # The page units can be a wild card * and all pages 0 to 9 will be shown.
 # 10* 15
-# 11* 15
+# 11* 20
 
 import zmq
 import time
@@ -41,25 +41,65 @@ host = "tcp://127.0.0.1:7777"
 socket = context.socket(zmq.REQ)
 socket.connect(host)
 
+
+def send_digit(ch):
+    socket.send_string(ch)
+    socket.recv()
+
+
+def send_page(page_str):
+    for ch in page_str:
+        send_digit(ch)
+        time.sleep(0.05)  # small delay between digits
+
+
 class Reader:
     def __init__(self, filename):
-        # initialise stuff in here
-        self.line = ""
-        self.state = 0
         self.filename = filename
         with open(filename) as f:
-            self.content = f.readlines()
+            self.content = [line.strip() for line in f.readlines()]
+        # Remove blank lines and comments
+        self.content = [l for l in self.content if l and not l.startswith('#')]
         self.count = len(self.content)
-        self.pageIndex = self.count
-        self.magazine_number = 1
+        self.pageIndex = -1  # will advance to 0 on first step
+        self.page_wildcard = False
         self.page_number_units = 0
-        self.page_number_tens = 0
-        self.page_wildcard = 0
+        self.current_page_base = ""  # e.g. "13" for "13*"
         self.page_timing = 20
+
+    def step(self):
+        # If we're mid-wildcard cycle, advance to next unit
+        if self.page_wildcard:
+            self.page_number_units += 1
+            if self.page_number_units > 9:
+                self.page_wildcard = False  # done, fall through to next config line
+            else:
+                time.sleep(self.page_timing)
+                return self.current_page_base + str(self.page_number_units)
+
+        # Move to next config line
+        self.pageIndex = (self.pageIndex + 1) % self.count
+        line = self.content[self.pageIndex]
+
+        parts = line.split()
+        page_str = parts[0]
+        self.page_timing = int(parts[1]) if len(parts) > 1 else 20
+
+        if page_str[2] == '*':
+            # Wildcard: cycle units 0-9
+            self.current_page_base = page_str[0:2]
+            self.page_wildcard = True
+            self.page_number_units = 0
+            time.sleep(self.page_timing)
+            return self.current_page_base + "0"
+        else:
+            self.page_wildcard = False
+            time.sleep(self.page_timing)
+            return page_str  # e.g. "200", "692", "104"
 
 
 reader = Reader("pft.config")
 while True:
-    socket.send_string(reader.step())
-    message = socket.recv()
-    print("Received reply" + str(message[0]))
+    page = reader.step()
+    print("Navigating to page: " + page)
+    send_page(page)
